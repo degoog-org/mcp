@@ -1,0 +1,18 @@
+services:
+  degoog-mcp:
+    build: .
+    image: degoog-mcp:latest
+    container_name: degoog-mcp
+    restart: unless-stopped
+    ports:
+      - "4443:4443"
+    environment:
+      DEGOOG_MCP_PORT: "4443"
+      DEGOOG_MCP_TIMEOUT: "15s"
+      DEGOOG_MCP_MAX_LENGTH: "12000"
+      DEGOOG_MCP_CACHE_EXPIRY: "30m"
+      DEGOOG_MCP_CACHE_SIZE_MB: "64"
+      DEGOOG_MCP_LOG_LEVEL: "info"
+      DEGOOG_MCP_DEGOOG_URL: "http://192.168.86.233:4444"
+      DEGOOG_MCP_API_KEY: ""
+      DEGOOG_MCP_USER_AGENT: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
