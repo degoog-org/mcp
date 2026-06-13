@@ -4,10 +4,10 @@
   <h1 align="center">degoog-mcp</h1><br/>
 </p>
 
-Lightweight Go sidecar that exposes [Degoog](../README.md) to LLMs via the [Model Context Protocol](https://modelcontextprotocol.io). Speaks MCP over HTTP/SSE, runs in a tiny `scratch` container, gives any MCP-capable client two tools:
+Lightweight Go sidecar that exposes [Degoog](../README.md) to LLMs via the [Model Context Protocol](https://modelcontextprotocol.io). Speaks modern MCP Streamable HTTP at `/mcp`, keeps legacy SSE for older clients, runs in a tiny `scratch` container, and gives any MCP-capable client two tools:
 
-- **`search`** — fast meta-search, returns URLs + snippets.
-- **`scrape`** — fetches URLs concurrently, returns clean Markdown (readability → html-to-markdown → cached).
+- **`search`** - fast meta-search, returns URLs + snippets.
+- **`scrape`** - fetches URLs concurrently, returns clean Markdown (readability -> html-to-markdown -> cached).
 
 **Still in beta.** Not intended for production use yet.
 
@@ -26,24 +26,30 @@ Lightweight Go sidecar that exposes [Degoog](../README.md) to LLMs via the [Mode
 
 ## Run
 
-Listens on `4443` by default. Healthcheck at `/healthz`. Config via `DEGOOG_MCP_*` env vars:
+Listens on `4443` by default. Modern MCP endpoint at `/mcp`, legacy SSE at `/sse` and `/`, healthcheck at `/healthz`. Config via `DEGOOG_MCP_*` env vars:
 
-| Variable                   | Default                    | Notes                                                              |
-| :------------------------- | :------------------------- | :----------------------------------------------------------------- |
-| `DEGOOG_MCP_PORT`          | `4443`                     | HTTP/SSE listen port                                               |
-| `DEGOOG_MCP_DEGOOG_URL`    | `http://degoog:4444`       | Where the Degoog aggregator lives. Default assumes shared compose. |
-| `DEGOOG_MCP_API_KEY`       | _(empty)_                  | Optional. If set, sent as `Authorization: Bearer …` to Degoog.     |
-| `DEGOOG_MCP_TIMEOUT`       | `15s`                      | Per-request timeout for both Degoog calls and scraped URLs.        |
-| `DEGOOG_MCP_MAX_LENGTH`    | `12000`                    | Max scraped-markdown length before head+tail truncation.           |
-| `DEGOOG_MCP_CACHE_EXPIRY`  | `30m`                      | Scrape cache TTL.                                                  |
-| `DEGOOG_MCP_CACHE_SIZE_MB` | `64`                       | Scrape cache hard memory cap.                                      |
-| `DEGOOG_MCP_LOG_LEVEL`     | `info`                     | `debug` / `info` / `warn` / `error`.                               |
-| `DEGOOG_MCP_USER_AGENT`    | a believable Chrome UA     | Used by the scraper when fetching pages.                           |
+| Variable                            | Default                    | Notes                                                              |
+| :---------------------------------- | :------------------------- | :----------------------------------------------------------------- |
+| `DEGOOG_MCP_BIND_HOST`              | _(empty)_                  | Optional bind host. Use `127.0.0.1` for local-only deployments.    |
+| `DEGOOG_MCP_PORT`                   | `4443`                     | HTTP listen port.                                                  |
+| `DEGOOG_MCP_DEGOOG_URL`             | `http://degoog:4444`       | Where the Degoog aggregator lives. Default assumes shared compose. |
+| `DEGOOG_MCP_API_KEY`                | _(empty)_                  | Optional. If set, sent as `Authorization: Bearer ...` to Degoog.   |
+| `DEGOOG_MCP_TIMEOUT`                | `15s`                      | Per-request timeout for both Degoog calls and scraped URLs.        |
+| `DEGOOG_MCP_MAX_LENGTH`             | `12000`                    | Max scraped-markdown length before head+tail truncation.           |
+| `DEGOOG_MCP_MAX_URLS`               | `8`                        | Max URLs accepted by one `scrape` tool call.                       |
+| `DEGOOG_MCP_SCRAPE_CONCURRENCY`     | `4`                        | Max concurrent URL fetches inside one `scrape` call.               |
+| `DEGOOG_MCP_MAX_RESPONSE_BYTES`     | `2097152`                  | Max downloaded bytes per scraped response before readability.      |
+| `DEGOOG_MCP_CACHE_EXPIRY`           | `30m`                      | Scrape cache TTL.                                                  |
+| `DEGOOG_MCP_CACHE_SIZE_MB`          | `64`                       | Scrape cache hard memory cap.                                      |
+| `DEGOOG_MCP_LOG_LEVEL`              | `info`                     | `debug` / `info` / `warn` / `error`.                               |
+| `DEGOOG_MCP_USER_AGENT`             | a believable Chrome UA     | Used by the scraper when fetching pages.                           |
 
-If your Degoog instance has API-key protection enabled (Settings → Server), copy the 64-char hex key into `DEGOOG_MCP_API_KEY`.
+The scraper accepts only `http` and `https` URLs, resolves DNS before dialing, blocks private and local IP ranges, and repeats the checks on redirects.
+
+If your Degoog instance has API-key protection enabled (Settings -> Server), copy the 64-char hex key into `DEGOOG_MCP_API_KEY`.
 
 <details>
-<summary>Docker Compose — standalone</summary>
+<summary>Docker Compose - standalone</summary>
 
 ```yaml
 services:
@@ -54,13 +60,14 @@ services:
     environment:
       DEGOOG_MCP_DEGOOG_URL: "http://<your-degoog-host>:4444"
       DEGOOG_MCP_API_KEY: ""
+      DEGOOG_MCP_BIND_HOST: ""
     restart: unless-stopped
 ```
 
 </details>
 
 <details>
-<summary>Docker Compose — alongside Degoog</summary>
+<summary>Docker Compose - alongside Degoog</summary>
 
 Both services on a shared network. The sidecar can reach the aggregator internally at `http://degoog:4444`.
 
@@ -92,19 +99,34 @@ networks:
 
 ## Connect a client
 
-SSE endpoint: `http://localhost:4443/`
+Modern Streamable HTTP endpoint: `http://localhost:4443/mcp`
+
+Legacy SSE endpoint: `http://localhost:4443/sse` (`/` is also kept for older users).
 
 <details>
-<summary>Claude Desktop</summary>
+<summary>Claude Desktop / current Claude</summary>
 
-Claude Desktop talks stdio, so use [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) as a bridge. Edit `claude_desktop_config.json` (Settings → Developer → Edit Config):
+Use HTTP transport where your Claude client supports remote MCP servers:
+
+```json
+{
+  "mcpServers": {
+    "degoog": {
+      "type": "http",
+      "url": "http://localhost:4443/mcp"
+    }
+  }
+}
+```
+
+For stdio-only Claude Desktop builds, use [`mcp-remote`](https://www.npmjs.com/package/mcp-remote) as a bridge. Edit `claude_desktop_config.json` (Settings -> Developer -> Edit Config):
 
 ```json
 {
   "mcpServers": {
     "degoog": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "http://localhost:4443/"]
+      "args": ["-y", "mcp-remote", "http://localhost:4443/mcp"]
     }
   }
 }
@@ -118,7 +140,7 @@ Restart Claude Desktop.
 <summary>Claude Code (CLI)</summary>
 
 ```bash
-claude mcp add --transport sse degoog http://localhost:4443/
+claude mcp add --transport http degoog http://localhost:4443/mcp
 ```
 
 </details>
@@ -132,7 +154,7 @@ Add to `~/.gemini/settings.json`:
 {
   "mcpServers": {
     "degoog": {
-      "url": "http://localhost:4443/"
+      "url": "http://localhost:4443/mcp"
     }
   }
 }
@@ -149,14 +171,16 @@ Most editors that speak MCP accept a config block like:
 {
   "mcpServers": {
     "degoog": {
-      "url": "http://localhost:4443/",
-      "transport": "sse"
+      "url": "http://localhost:4443/mcp",
+      "transport": "http"
     }
   }
 }
 ```
 
-For stdio-only clients, wrap with `npx mcp-remote http://localhost:4443/` the same way Claude Desktop does above.
+For stdio-only clients, wrap with `npx mcp-remote http://localhost:4443/mcp` the same way Claude Desktop does above.
+
+Legacy SSE clients can use `http://localhost:4443/sse` with `transport: "sse"`. New clients should use `/mcp`.
 
 </details>
 
@@ -165,10 +189,10 @@ For stdio-only clients, wrap with `npx mcp-remote http://localhost:4443/` the sa
 With Go installed:
 
 ```bash
-go test -race ./tests/...
+go test -race -count=1 ./...
 ```
 
-Without Go — run them in a throwaway container:
+Without Go, run them in a throwaway container:
 
 ```bash
 docker compose -f docker-compose.test.yml run --rm test

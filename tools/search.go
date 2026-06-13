@@ -12,7 +12,7 @@ const (
 
 USE THIS FIRST for quick wins and factual lookups: when you need a fact, want authoritative URLs to verify a claim, or want to discover what exists before drilling deeper. Cheap and fast.
 
-DO NOT use this when the user has asked for deep article content — chain the returned URLs into the 'scrape' tool for that.
+DO NOT use this when the user has asked for deep article content, chain the returned URLs into the 'scrape' tool for that.
 
 Optional parameters mirror the Degoog HTTP API: result 'type' (web|images|videos|news), 'page' (1-10), time window ('any'|'hour'|'day'|'week'|'month'|'year'|'custom' with dateFrom/dateTo as 'YYYY MM DD'), and 'lang' (ISO 639-1).`
 )

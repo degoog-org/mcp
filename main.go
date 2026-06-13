@@ -23,7 +23,9 @@ const (
 	SERVER_NAME    = "degoog-mcp"
 	SERVER_VERSION = "0.1.0"
 	SHUTDOWN_WAIT  = 5 * time.Second
-	ROUTE_SSE      = "/"
+	ROUTE_MCP      = "/mcp"
+	ROUTE_SSE      = "/sse"
+	ROUTE_LEGACY   = "/"
 	ROUTE_HEALTH   = "/healthz"
 	HEALTH_BODY    = "ok"
 	READ_TIMEOUT   = 30 * time.Second
@@ -34,7 +36,7 @@ const (
 func main() {
 	log := logger.Get()
 	cfg := config.Load()
-	log.Info("boot: %s v%s on :%s", SERVER_NAME, SERVER_VERSION, cfg.Port)
+	log.Info("boot: %s v%s on %s", SERVER_NAME, SERVER_VERSION, listenAddr(cfg))
 
 	store, err := cache.New(cfg.CacheExpiry, cfg.CacheSizeMB)
 	if err != nil {
@@ -43,25 +45,22 @@ func main() {
 	}
 	defer store.Close()
 
-	sc := scraper.New(store, cfg.UserAgent, cfg.Timeout, cfg.MaxLength)
+	sc := scraper.NewWithOptions(store, cfg.UserAgent, cfg.Timeout, scraper.Options{
+		MaxLength:   cfg.MaxLength,
+		MaxURLs:     cfg.MaxURLs,
+		Concurrency: cfg.Concurrency,
+		MaxBytes:    cfg.MaxBytes,
+	})
 	dg := degoog.New(cfg.DegoogURL, cfg.APIKey, cfg.Timeout)
 	log.Info("degoog: client targeting %s (api key: %v)", cfg.DegoogURL, cfg.APIKey != "")
 
 	srv := mcp.NewServer(&mcp.Implementation{Name: SERVER_NAME, Version: SERVER_VERSION}, nil)
 	commands.Register(srv, sc, dg)
 
-	sseHandler := mcp.NewSSEHandler(func(*http.Request) *mcp.Server { return srv }, nil)
-
-	mux := http.NewServeMux()
-	mux.Handle(ROUTE_SSE, sseHandler)
-	mux.HandleFunc(ROUTE_HEALTH, func(w http.ResponseWriter, r *http.Request) {
-		if _, werr := w.Write([]byte(HEALTH_BODY)); werr != nil {
-			log.Warn("health: write failed: %v", werr)
-		}
-	})
+	mux := buildMux(srv, log)
 
 	httpSrv := &http.Server{
-		Addr:         ":" + cfg.Port,
+		Addr:         listenAddr(cfg),
 		Handler:      mux,
 		ReadTimeout:  READ_TIMEOUT,
 		WriteTimeout: WRITE_TIMEOUT,
@@ -92,6 +91,33 @@ func main() {
 	}
 
 	lightsOut(httpSrv, log)
+}
+
+func listenAddr(cfg *config.Config) string {
+	return cfg.BindHost + ":" + cfg.Port
+}
+
+func buildMux(srv *mcp.Server, log *logger.Logger) *http.ServeMux {
+	mcpHandler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return srv }, nil)
+	sseHandler := mcp.NewSSEHandler(func(*http.Request) *mcp.Server { return srv }, nil)
+
+	mux := http.NewServeMux()
+	mux.Handle(ROUTE_MCP, mcpHandler)
+	mux.Handle(ROUTE_SSE, sseHandler)
+	mux.Handle(ROUTE_LEGACY, legacySSE(sseHandler, log))
+	mux.HandleFunc(ROUTE_HEALTH, func(w http.ResponseWriter, r *http.Request) {
+		if _, werr := w.Write([]byte(HEALTH_BODY)); werr != nil {
+			log.Warn("health: write failed: %v", werr)
+		}
+	})
+	return mux
+}
+
+func legacySSE(next http.Handler, log *logger.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Warn("http: legacy sse endpoint used path=%s", r.URL.Path)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func lightsOut(srv *http.Server, log *logger.Logger) {

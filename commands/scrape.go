@@ -12,6 +12,7 @@ import (
 )
 
 var ErrNoURLs = errors.New("scrape: at least one url is required")
+var ErrTooManyURLs = errors.New("scrape: too many urls requested")
 
 type scrapeHandler struct {
 	sc *scraper.Scraper
@@ -25,6 +26,10 @@ func (h *scrapeHandler) handle(ctx context.Context, req *mcp.CallToolRequest, in
 	if len(in.URLs) == 0 {
 		logger.Get().Error("scrape: rejected empty url list")
 		return nil, tools.ScrapeOutput{}, ErrNoURLs
+	}
+	if len(in.URLs) > h.sc.MaxURLs() {
+		logger.Get().Error("scrape: rejected %d url(s), max is %d", len(in.URLs), h.sc.MaxURLs())
+		return nil, tools.ScrapeOutput{}, ErrTooManyURLs
 	}
 	logger.Get().Info("scrape: dispatching %d url(s)", len(in.URLs))
 	results := h.sc.ScrapeMany(ctx, in.URLs)

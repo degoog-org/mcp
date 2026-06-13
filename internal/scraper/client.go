@@ -1,6 +1,16 @@
 package scraper
 
-import "net/http"
+import (
+	"context"
+	"errors"
+	"net"
+	"net/http"
+	"net/netip"
+	"net/url"
+	"time"
+
+	"degoog-mcp/internal/logger"
+)
 
 const (
 	HEADER_UA       = "User-Agent"
@@ -20,6 +30,25 @@ const (
 	SEC_FD_DEFAULT  = "document"
 )
 
+var (
+	ErrBadScheme = errors.New("url scheme must be http or https")
+	ErrBadHost   = errors.New("url host is required")
+	ErrBadIP     = errors.New("url resolves to blocked ip")
+)
+
+var blockedNets = []netip.Prefix{
+	netip.MustParsePrefix("0.0.0.0/8"),
+	netip.MustParsePrefix("100.64.0.0/10"),
+	netip.MustParsePrefix("192.0.0.0/24"),
+	netip.MustParsePrefix("192.0.2.0/24"),
+	netip.MustParsePrefix("198.18.0.0/15"),
+	netip.MustParsePrefix("198.51.100.0/24"),
+	netip.MustParsePrefix("203.0.113.0/24"),
+	netip.MustParsePrefix("240.0.0.0/4"),
+	netip.MustParsePrefix("255.255.255.255/32"),
+	netip.MustParsePrefix("2001:db8::/32"),
+}
+
 type browserRT struct {
 	base http.RoundTripper
 	ua   string
@@ -37,8 +66,127 @@ func (b *browserRT) RoundTrip(r *http.Request) (*http.Response, error) {
 	return b.base.RoundTrip(r)
 }
 
-func Polyjuice(ua string) *http.Client {
-	return &http.Client{
-		Transport: &browserRT{base: http.DefaultTransport, ua: ua},
+type guardRT struct {
+	base http.RoundTripper
+}
+
+func (g *guardRT) RoundTrip(r *http.Request) (*http.Response, error) {
+	if err := CheckURL(r.Context(), r.URL); err != nil {
+		logger.Get().Warn("scraper: rejected url=%s: %v", r.URL.String(), err)
+		return nil, err
 	}
+	return g.base.RoundTrip(r)
+}
+
+func Polyjuice(ua string) *http.Client {
+	transport := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           guardedDial,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
+	return &http.Client{
+		Transport: &browserRT{base: &guardRT{base: transport}, ua: ua},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if err := CheckURL(req.Context(), req.URL); err != nil {
+				logger.Get().Warn("scraper: rejected redirect url=%s: %v", req.URL.String(), err)
+				return err
+			}
+			return nil
+		},
+	}
+}
+
+func CheckURL(ctx context.Context, target *url.URL) error {
+	if target == nil {
+		return ErrBadHost
+	}
+	if target.Scheme != "http" && target.Scheme != "https" {
+		return ErrBadScheme
+	}
+	if target.Hostname() == "" {
+		return ErrBadHost
+	}
+	_, err := resolveHost(ctx, target.Hostname())
+	return err
+}
+
+func guardedDial(ctx context.Context, network, address string) (net.Conn, error) {
+	host, port, err := net.SplitHostPort(address)
+	if err != nil {
+		return nil, err
+	}
+
+	ips, err := resolveHost(ctx, host)
+	if err != nil {
+		return nil, err
+	}
+
+	dialer := &net.Dialer{}
+	var lastErr error
+	for _, ip := range ips {
+		conn, err := dialer.DialContext(ctx, network, net.JoinHostPort(ip.String(), port))
+		if err == nil {
+			return conn, nil
+		}
+		lastErr = err
+		logger.Get().Warn("scraper: dial failed ip=%s port=%s: %v", ip.String(), port, err)
+	}
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, ErrBadIP
+}
+
+func resolveHost(ctx context.Context, host string) ([]netip.Addr, error) {
+	if ip, err := netip.ParseAddr(host); err == nil {
+		return vetIPs([]netip.Addr{ip})
+	}
+
+	addrs, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		logger.Get().Warn("scraper: dns failed host=%s: %v", host, err)
+		return nil, err
+	}
+
+	ips := make([]netip.Addr, 0, len(addrs))
+	for _, addr := range addrs {
+		ip, ok := netip.AddrFromSlice(addr.IP)
+		if ok {
+			ips = append(ips, ip.Unmap())
+		}
+	}
+	return vetIPs(ips)
+}
+
+func vetIPs(ips []netip.Addr) ([]netip.Addr, error) {
+	allowed := make([]netip.Addr, 0, len(ips))
+	for _, ip := range ips {
+		if isAllowedIP(ip) {
+			allowed = append(allowed, ip)
+		} else {
+			logger.Get().Warn("scraper: blocked ip=%s", ip.String())
+		}
+	}
+	if len(allowed) == 0 {
+		return nil, ErrBadIP
+	}
+	return allowed, nil
+}
+
+func isAllowedIP(ip netip.Addr) bool {
+	if !ip.IsValid() || !ip.IsGlobalUnicast() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified() {
+		return false
+	}
+
+	for _, prefix := range blockedNets {
+		if prefix.Contains(ip) {
+			return false
+		}
+	}
+	return true
 }
