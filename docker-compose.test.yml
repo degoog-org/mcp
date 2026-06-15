@@ -1,6 +1,6 @@
 services:
   test:
-    image: golang:1.25-alpine
+    image: golang:1.26-alpine
     working_dir: /src
     volumes:
       - .:/src
@@ -8,8 +8,7 @@ services:
       - go-build-cache:/root/.cache/go-build
     environment:
       CGO_ENABLED: "1"
-      GOFLAGS: "-count=1"
-    command: sh -c "apk add --no-cache git build-base >/dev/null && go mod tidy && go vet ./... && go test -race -v ./tests/..."
+    command: sh -c "apk add --no-cache git build-base >/dev/null && go vet ./... && go test -race -count=1 ./..."
 
 volumes:
   go-mod-cache:
