@@ -1,7 +1,7 @@
 <p align="center">
-  <img src="../src/public/images/degoog-logo.png" alt="Degoog Logo" width="100">
+  <img src="https://github.com/degoog-org/degoog/blob/main/src/public/images/degoog-logo.png" alt="Degoog Logo" width="100">
   <br />
-  <h1 align="center">degoog-mcp</h1><br/>
+  <h1 align="center">degoog</h1><br/>
 </p>
 
 Lightweight Go sidecar that exposes [Degoog](../README.md) to LLMs via the [Model Context Protocol](https://modelcontextprotocol.io). Speaks modern MCP Streamable HTTP at `/mcp`, keeps legacy SSE for older clients, runs in a tiny `scratch` container, and gives any MCP-capable client two tools:
@@ -203,10 +203,6 @@ Without Go, run them in a throwaway container:
 ```bash
 docker compose -f docker-compose.test.yml run --rm test
 ```
-
-## Shoutout
-
-Built on [modelcontextprotocol/go-sdk](https://github.com/modelcontextprotocol/go-sdk), [go-shiori/go-readability](https://github.com/go-shiori/go-readability), [JohannesKaufmann/html-to-markdown](https://github.com/JohannesKaufmann/html-to-markdown), [allegro/bigcache](https://github.com/allegro/bigcache). Full aggregator lives [one folder up](../README.md).
 
 <p align="center">
   <br />
