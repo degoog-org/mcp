@@ -102,17 +102,26 @@ type searchBody struct {
 }
 
 type Client struct {
-	base   string
-	apiKey string
-	http   *http.Client
+	base     string
+	apiKey   string
+	maxBytes int64
+	http     *http.Client
 }
 
-func New(base, apiKey string, timeout time.Duration) *Client {
+func New(base, apiKey string, timeout time.Duration, maxBytes int64) *Client {
 	return &Client{
-		base:   strings.TrimRight(base, "/"),
-		apiKey: apiKey,
-		http:   &http.Client{Timeout: timeout},
+		base:     strings.TrimRight(base, "/"),
+		apiKey:   apiKey,
+		maxBytes: maxBytes,
+		http:     &http.Client{Timeout: timeout},
 	}
+}
+
+func (c *Client) errBodyReader(r io.Reader) io.Reader {
+	if c.maxBytes <= 0 {
+		return r
+	}
+	return io.LimitReader(r, c.maxBytes)
 }
 
 func (c *Client) Search(ctx context.Context, p SearchParams) (*Response, error) {
@@ -142,7 +151,7 @@ func (c *Client) Search(ctx context.Context, p SearchParams) (*Response, error) 
 	}()
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		body, rerr := io.ReadAll(resp.Body)
+		body, rerr := io.ReadAll(c.errBodyReader(resp.Body))
 		if rerr != nil {
 			logger.Get().Warn("degoog: error body read: %v", rerr)
 		}

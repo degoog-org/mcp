@@ -51,7 +51,7 @@ func main() {
 		Concurrency: cfg.Concurrency,
 		MaxBytes:    cfg.MaxBytes,
 	})
-	dg := degoog.New(cfg.DegoogURL, cfg.APIKey, cfg.Timeout)
+	dg := degoog.New(cfg.DegoogURL, cfg.APIKey, cfg.Timeout, cfg.MaxBytes)
 	log.Info("degoog: client targeting %s (api key: %v)", cfg.DegoogURL, cfg.APIKey != "")
 
 	srv := mcp.NewServer(&mcp.Implementation{Name: SERVER_NAME, Version: SERVER_VERSION}, nil)
