@@ -101,15 +101,12 @@ func (s *Scraper) ScrapeMany(ctx context.Context, urls []string) []Result {
 	}
 	wg.Wait()
 
-	kept := make([]Result, 0, len(results))
 	for _, r := range results {
 		if r.Error != "" {
-			logger.Get().Warn("scraper: discarding url=%s reason=%s", r.URL, r.Error)
-			continue
+			logger.Get().Warn("scraper: failed url=%s reason=%s", r.URL, r.Error)
 		}
-		kept = append(kept, r)
 	}
-	return kept
+	return results
 }
 
 func (s *Scraper) scrapeOne(ctx context.Context, raw string) Result {

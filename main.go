@@ -21,7 +21,7 @@ import (
 
 const (
 	SERVER_NAME    = "degoog-mcp"
-	SERVER_VERSION = "0.1.0"
+	SERVER_VERSION = "0.2.0"
 	SHUTDOWN_WAIT  = 5 * time.Second
 	ROUTE_MCP      = "/mcp"
 	ROUTE_SSE      = "/sse"

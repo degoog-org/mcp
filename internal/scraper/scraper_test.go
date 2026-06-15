@@ -1,6 +1,15 @@
 package scraper
 
-import "testing"
+import (
+	"context"
+	"strings"
+	"testing"
+	"time"
+
+	"degoog-mcp/internal/cache"
+)
+
+const TEST_UA = "TestAgent/9.9"
 
 func TestFillOptsDefaults(t *testing.T) {
 	opts := fillOpts(Options{})
@@ -35,5 +44,28 @@ func TestFillOptsOverrides(t *testing.T) {
 	}
 	if opts.MaxBytes != 1024 {
 		t.Fatalf("MaxBytes: got %d", opts.MaxBytes)
+	}
+}
+
+func TestScrapeManyKeepsFailureRows(t *testing.T) {
+	store, err := cache.New(time.Minute, 1)
+	if err != nil {
+		t.Fatalf("cache: %v", err)
+	}
+	defer store.Close()
+
+	s := NewWithOptions(store, TEST_UA, time.Second, Options{MaxURLs: 2, Concurrency: 1})
+	results := s.ScrapeMany(context.Background(), []string{"notaurl"})
+	if len(results) != 1 {
+		t.Fatalf("results: want one failure row, got %d", len(results))
+	}
+	if results[0].URL != "notaurl" {
+		t.Fatalf("url preserved: got %q", results[0].URL)
+	}
+	if results[0].Error == "" {
+		t.Fatalf("expected error row, got %+v", results[0])
+	}
+	if !strings.Contains(results[0].Error, "blocked url") {
+		t.Fatalf("expected blocked url error, got %q", results[0].Error)
 	}
 }

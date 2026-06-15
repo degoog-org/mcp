@@ -67,15 +67,21 @@ type EngineTiming struct {
 	Name        string `json:"name"`
 	Time        int    `json:"time"`
 	ResultCount int    `json:"resultCount"`
+	Status      string `json:"status,omitempty"`
+	ErrorReason string `json:"errorReason,omitempty"`
+	HTTPStatus  int    `json:"httpStatus,omitempty"`
+	Indexed     *bool  `json:"indexed,omitempty"`
 }
 
 type Response struct {
-	Results         []Hit          `json:"results"`
-	Query           string         `json:"query"`
-	TotalTime       int            `json:"totalTime"`
-	Type            string         `json:"type"`
-	EngineTimings   []EngineTiming `json:"engineTimings,omitempty"`
-	RelatedSearches []string       `json:"relatedSearches,omitempty"`
+	Results          []Hit          `json:"results"`
+	Query            string         `json:"query"`
+	TotalTime        int            `json:"totalTime"`
+	Type             string         `json:"type"`
+	EngineTimings    []EngineTiming `json:"engineTimings,omitempty"`
+	RelatedSearches  []string       `json:"relatedSearches,omitempty"`
+	ResultsBeforeCap int            `json:"-"`
+	ResultsDropped   int            `json:"-"`
 }
 
 type SearchParams struct {
@@ -166,7 +172,9 @@ func (c *Client) Search(ctx context.Context, p SearchParams) (*Response, error) 
 		return nil, derr
 	}
 
+	out.ResultsBeforeCap = len(out.Results)
 	trimmed := capResults(&out, p.MaxResults)
+	out.ResultsDropped = trimmed
 	logger.Get().Info("degoog: ok q=%q type=%q engines=%d hits=%d capped=%d took=%dms", q, out.Type, len(p.Engines), len(out.Results), trimmed, out.TotalTime)
 	return &out, nil
 }
