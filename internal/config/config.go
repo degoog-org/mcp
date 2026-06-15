@@ -21,9 +21,10 @@ const (
 	ENV_CACHE_SIZE  = "DEGOOG_MCP_CACHE_SIZE_MB"
 	ENV_USER_AGENT  = "DEGOOG_MCP_USER_AGENT"
 	ENV_DEGOOG_URL  = "DEGOOG_MCP_DEGOOG_URL"
-	ENV_API_KEY     = "DEGOOG_MCP_API_KEY"
+	ENV_API_KEY     = "DEGOOG_MCP_DEGOOG_API_KEY"
 	ENV_MAX_RESULTS = "DEGOOG_MCP_MAX_RESULTS"
 	ENV_ENGINES     = "DEGOOG_MCP_ENGINES"
+	ENV_AUTH_TOKEN  = "DEGOOG_MCP_AUTH_TOKEN"
 
 	DEFAULT_BIND_HOST   = ""
 	DEFAULT_PORT        = "4443"
@@ -56,6 +57,7 @@ type Config struct {
 	APIKey      string
 	MaxResults  int
 	Engines     []string
+	AuthToken   string
 }
 
 func Load() *Config {
@@ -74,6 +76,7 @@ func Load() *Config {
 		APIKey:      readStr(ENV_API_KEY, ""),
 		MaxResults:  readNonNeg(ENV_MAX_RESULTS, DEFAULT_MAX_RESULTS),
 		Engines:     readList(ENV_ENGINES),
+		AuthToken:   strings.TrimSpace(os.Getenv(ENV_AUTH_TOKEN)),
 	}
 }
 
