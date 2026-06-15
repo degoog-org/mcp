@@ -14,17 +14,21 @@ USE THIS FIRST for quick wins and factual lookups: when you need a fact, want au
 
 DO NOT use this when the user has asked for deep article content, chain the returned URLs into the 'scrape' tool for that.
 
-Optional parameters mirror the Degoog HTTP API: result 'type' (web|images|videos|news), 'page' (1-10), time window ('any'|'hour'|'day'|'week'|'month'|'year'|'custom' with dateFrom/dateTo as 'YYYY MM DD'), and 'lang' (ISO 639-1).`
+Optional parameters mirror the Degoog HTTP API: result 'type' (web|images|videos|news), 'page' (1-10), time window ('any'|'hour'|'day'|'week'|'month'|'year'|'custom' with dateFrom/dateTo as 'YYYY MM DD'), and 'lang' (ISO 639-1).
+
+To keep responses small, set 'maxResults' to cap how many merged results come back (top-scored kept). Use 'engines' to restrict the query to specific engine ids (see /api/extensions?type=engine on your Degoog instance); leave it empty to use the instance defaults.`
 )
 
 type SearchInput struct {
-	Query    string `json:"query" jsonschema:"the search query string"`
-	Type     string `json:"type,omitempty" jsonschema:"result type: web (default), images, videos, news"`
-	Page     int    `json:"page,omitempty" jsonschema:"result page, 1-10"`
-	Time     string `json:"time,omitempty" jsonschema:"time window: any, hour, day, week, month, year, custom"`
-	Lang     string `json:"lang,omitempty" jsonschema:"ISO 639-1 language code"`
-	DateFrom string `json:"dateFrom,omitempty" jsonschema:"YYYY MM DD, required when time=custom"`
-	DateTo   string `json:"dateTo,omitempty" jsonschema:"YYYY MM DD, required when time=custom"`
+	Query      string   `json:"query" jsonschema:"the search query string"`
+	Type       string   `json:"type,omitempty" jsonschema:"result type: web (default), images, videos, news"`
+	Page       int      `json:"page,omitempty" jsonschema:"result page, 1-10"`
+	Time       string   `json:"time,omitempty" jsonschema:"time window: any, hour, day, week, month, year, custom"`
+	Lang       string   `json:"lang,omitempty" jsonschema:"ISO 639-1 language code"`
+	DateFrom   string   `json:"dateFrom,omitempty" jsonschema:"YYYY MM DD, required when time=custom"`
+	DateTo     string   `json:"dateTo,omitempty" jsonschema:"YYYY MM DD, required when time=custom"`
+	Engines    []string `json:"engines,omitempty" jsonschema:"restrict to these engine ids only, e.g. [brave, duckduckgo]; empty uses instance defaults"`
+	MaxResults int      `json:"maxResults,omitempty" jsonschema:"cap returned results to the top N merged hits; 0 or omitted uses the server default"`
 }
 
 type SearchOutput struct {

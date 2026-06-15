@@ -35,6 +35,8 @@ Listens on `4443` by default. Modern MCP endpoint at `/mcp`, legacy SSE at `/sse
 | `DEGOOG_MCP_DEGOOG_URL`             | `http://degoog:4444`       | Where the Degoog aggregator lives. Default assumes shared compose. |
 | `DEGOOG_MCP_API_KEY`                | _(empty)_                  | Optional. If set, sent as `Authorization: Bearer ...` to Degoog.   |
 | `DEGOOG_MCP_TIMEOUT`                | `15s`                      | Per-request timeout for both Degoog calls and scraped URLs.        |
+| `DEGOOG_MCP_MAX_RESULTS`            | `0`                        | Cap on merged `search` results (top-scored kept). `0` = no cap. Trims context for small-window models. Overridable per call. |
+| `DEGOOG_MCP_ENGINES`                | _(empty)_                  | Comma-separated engine ids to restrict every `search` to (e.g. `brave,duckduckgo`). Empty = instance defaults. Overridable per call. |
 | `DEGOOG_MCP_MAX_LENGTH`             | `12000`                    | Max scraped-markdown length before head+tail truncation.           |
 | `DEGOOG_MCP_MAX_URLS`               | `8`                        | Max URLs accepted by one `scrape` tool call.                       |
 | `DEGOOG_MCP_SCRAPE_CONCURRENCY`     | `4`                        | Max concurrent URL fetches inside one `scrape` call.               |
@@ -47,6 +49,8 @@ Listens on `4443` by default. Modern MCP endpoint at `/mcp`, legacy SSE at `/sse
 The scraper accepts only `http` and `https` URLs, resolves DNS before dialing, blocks private and local IP ranges, and repeats the checks on redirects.
 
 If your Degoog instance has API-key protection enabled (Settings -> Server), copy the 64-char hex key into `DEGOOG_MCP_API_KEY`.
+
+Valid engine ids for `DEGOOG_MCP_ENGINES` (and the per-call `engines` argument) come from your instance: `GET /api/extensions?type=engine` lists them. Running a second Degoog instance with a single engine enabled is no longer necessary; restrict from the MCP side instead.
 
 <details>
 <summary>Docker Compose - standalone</summary>

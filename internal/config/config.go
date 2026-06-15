@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"degoog-mcp/internal/logger"
@@ -21,6 +22,8 @@ const (
 	ENV_USER_AGENT  = "DEGOOG_MCP_USER_AGENT"
 	ENV_DEGOOG_URL  = "DEGOOG_MCP_DEGOOG_URL"
 	ENV_API_KEY     = "DEGOOG_MCP_API_KEY"
+	ENV_MAX_RESULTS = "DEGOOG_MCP_MAX_RESULTS"
+	ENV_ENGINES     = "DEGOOG_MCP_ENGINES"
 
 	DEFAULT_BIND_HOST   = ""
 	DEFAULT_PORT        = "4443"
@@ -33,6 +36,9 @@ const (
 	DEFAULT_CACHE_SIZE  = 64
 	DEFAULT_USER_AGENT  = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 	DEFAULT_DEGOOG_URL  = "http://degoog:4444"
+	DEFAULT_MAX_RESULTS = 0
+
+	LIST_SEP = ","
 )
 
 type Config struct {
@@ -48,6 +54,8 @@ type Config struct {
 	UserAgent   string
 	DegoogURL   string
 	APIKey      string
+	MaxResults  int
+	Engines     []string
 }
 
 func Load() *Config {
@@ -64,7 +72,33 @@ func Load() *Config {
 		UserAgent:   readStr(ENV_USER_AGENT, DEFAULT_USER_AGENT),
 		DegoogURL:   readStr(ENV_DEGOOG_URL, DEFAULT_DEGOOG_URL),
 		APIKey:      readStr(ENV_API_KEY, ""),
+		MaxResults:  readNonNeg(ENV_MAX_RESULTS, DEFAULT_MAX_RESULTS),
+		Engines:     readList(ENV_ENGINES),
 	}
+}
+
+func readNonNeg(key string, def int) int {
+	n := readInt(key, def)
+	if n < 0 {
+		logger.Get().Warn("config: negative value for %s=%d, falling back to %d", key, n, def)
+		return def
+	}
+	return n
+}
+
+func readList(key string) []string {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return nil
+	}
+	parts := strings.Split(v, LIST_SEP)
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
 
 func readStr(key, def string) string {

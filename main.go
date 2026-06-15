@@ -55,7 +55,7 @@ func main() {
 	log.Info("degoog: client targeting %s (api key: %v)", cfg.DegoogURL, cfg.APIKey != "")
 
 	srv := mcp.NewServer(&mcp.Implementation{Name: SERVER_NAME, Version: SERVER_VERSION}, nil)
-	commands.Register(srv, sc, dg)
+	commands.Register(srv, sc, dg, cfg)
 
 	mux := buildMux(srv, log)
 
