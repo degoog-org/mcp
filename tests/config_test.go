@@ -99,6 +99,26 @@ func TestLoadOverrides(t *testing.T) {
 	}
 }
 
+func TestAuthTokenDefaultEmpty(t *testing.T) {
+	t.Setenv(config.ENV_AUTH_TOKEN, "")
+
+	cfg := config.Load()
+
+	if cfg.AuthToken != "" {
+		t.Errorf("AuthToken default: want empty, got %q", cfg.AuthToken)
+	}
+}
+
+func TestAuthTokenTrimmed(t *testing.T) {
+	t.Setenv(config.ENV_AUTH_TOKEN, "  s3cret  ")
+
+	cfg := config.Load()
+
+	if cfg.AuthToken != "s3cret" {
+		t.Errorf("AuthToken override: want %q, got %q", "s3cret", cfg.AuthToken)
+	}
+}
+
 func TestLoadBadValuesFallback(t *testing.T) {
 	t.Setenv(config.ENV_TIMEOUT, "not-a-duration")
 	t.Setenv(config.ENV_MAX_LENGTH, "not-an-int")

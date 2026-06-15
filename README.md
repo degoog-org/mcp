@@ -4,7 +4,7 @@
   <h1 align="center">degoog-mcp</h1><br/>
 </p>
 
-Lightweight Go sidecar that exposes [Degoog](../README.md) to LLMs via the [Model Context Protocol](https://modelcontextprotocol.io). Speaks modern MCP Streamable HTTP at `/mcp`, keeps legacy SSE for older clients, runs in a tiny `scratch` container, and gives any MCP-capable client two tools:
+Lightweight Go sidecar that exposes [Degoog](../README.md) to LLMs via the [Model Context Protocol](https://modelcontextprotocol.io). Speaks modern MCP Streamable HTTP at `/mcp`, runs in a tiny `scratch` container, and gives any MCP-capable client two tools:
 
 - **`search`** - fast meta-search, returns a concise text summary plus structured URLs, snippets, engine timings, cap metadata, and source overlap.
 - **`scrape`** - fetches URLs concurrently, returns clean Markdown plus one structured row per requested URL, including explicit error rows for failures.
@@ -26,14 +26,15 @@ Lightweight Go sidecar that exposes [Degoog](../README.md) to LLMs via the [Mode
 
 ## Run
 
-Listens on `4443` by default. Modern MCP endpoint at `/mcp`, legacy SSE at `/sse` and `/`, healthcheck at `/healthz`. Config via `DEGOOG_MCP_*` env vars:
+Listens on `4443` by default. Modern MCP endpoint at `/mcp`, healthcheck at `/healthz`. Config via `DEGOOG_MCP_*` env vars:
 
 | Variable                            | Default                    | Notes                                                              |
 | :---------------------------------- | :------------------------- | :----------------------------------------------------------------- |
 | `DEGOOG_MCP_BIND_HOST`              | _(empty)_                  | Optional bind host. Use `127.0.0.1` for local-only deployments.    |
 | `DEGOOG_MCP_PORT`                   | `4443`                     | HTTP listen port.                                                  |
 | `DEGOOG_MCP_DEGOOG_URL`             | `http://degoog:4444`       | Where the Degoog aggregator lives. Default assumes shared compose. |
-| `DEGOOG_MCP_API_KEY`                | _(empty)_                  | Optional Bearer token sent to Degoog as an Authorization header.   |
+| `DEGOOG_MCP_DEGOOG_API_KEY`         | _(empty)_                  | Optional Bearer token sent to Degoog as an Authorization header.   |
+| `DEGOOG_MCP_AUTH_TOKEN`             | _(empty)_                  | Optional inbound bearer token clients must present on `/mcp`. Empty = `/mcp` is open. `/healthz` is always open. |
 | `DEGOOG_MCP_TIMEOUT`                | `15s`                      | Per-request timeout for both Degoog calls and scraped URLs.        |
 | `DEGOOG_MCP_MAX_RESULTS`            | `0`                        | Cap on merged `search` results (top-scored kept). `0` = no cap. Trims context for small-window models. Overridable per call. |
 | `DEGOOG_MCP_ENGINES`                | _(empty)_                  | Comma-separated engine ids to restrict every `search` to (e.g. `brave,duckduckgo`). Empty = instance defaults. Overridable per call. |
@@ -48,8 +49,6 @@ Listens on `4443` by default. Modern MCP endpoint at `/mcp`, legacy SSE at `/sse
 
 The scraper accepts only `http` and `https` URLs, resolves DNS before dialing, blocks private and local IP ranges, and repeats the checks on redirects.
 
-| `DEGOOG_MCP_API_KEY`                | _(empty)_                  | Optional Bearer token sent to Degoog as an Authorization header.   |
-
 Valid engine ids for `DEGOOG_MCP_ENGINES` (and the per-call `engines` argument) come from your instance: `GET /api/extensions?type=engine` lists them. Running a second Degoog instance with a single engine enabled is no longer necessary; restrict from the MCP side instead.
 
 <details>
@@ -63,7 +62,8 @@ services:
       - "4443:4443"
     environment:
       DEGOOG_MCP_DEGOOG_URL: "http://<your-degoog-host>:4444"
-| `DEGOOG_MCP_API_KEY`                | _(empty)_                  | Optional Bearer token sent to Degoog as an Authorization header.   |
+      # Optional: require clients to send Authorization: Bearer <token> to /mcp
+      DEGOOG_MCP_AUTH_TOKEN: ""
       DEGOOG_MCP_BIND_HOST: ""
     restart: unless-stopped
 ```
@@ -107,7 +107,9 @@ Modern Streamable HTTP endpoint: `http://localhost:4443/mcp`
 
 If your MCP host prefixes tool names with the server name, name the server `degoog` rather than an environment-specific label. That keeps exposed names short and obvious, e.g. `mcp_degoog_search` and `mcp_degoog_scrape`.
 
-Legacy SSE endpoint: `http://localhost:4443/sse` (`/` is also kept for older users).
+### Auth
+
+When `DEGOOG_MCP_AUTH_TOKEN` is set, every request to `/mcp` must carry `Authorization: Bearer <token>`. Missing, malformed, or wrong tokens get a `401` with a `WWW-Authenticate: Bearer` header. `/healthz` stays open so container health checks keep working. Leave the variable empty to keep `/mcp` open. For clients that support custom HTTP headers, add the bearer header (examples below).
 
 <details>
 <summary>Claude Desktop / current Claude</summary>
@@ -120,6 +122,22 @@ Use HTTP transport where your Claude client supports remote MCP servers:
     "degoog": {
       "type": "http",
       "url": "http://localhost:4443/mcp"
+    }
+  }
+}
+```
+
+If you set `DEGOOG_MCP_AUTH_TOKEN`, add the bearer header:
+
+```json
+{
+  "mcpServers": {
+    "degoog": {
+      "type": "http",
+      "url": "http://localhost:4443/mcp",
+      "headers": {
+        "Authorization": "Bearer <your-token>"
+      }
     }
   }
 }
@@ -184,9 +202,9 @@ Most editors that speak MCP accept a config block like:
 }
 ```
 
-For stdio-only clients, wrap with `npx mcp-remote http://localhost:4443/mcp` the same way Claude Desktop does above.
+If you set `DEGOOG_MCP_AUTH_TOKEN`, add an `Authorization: Bearer <token>` header where your client supports custom HTTP headers.
 
-Legacy SSE clients can use `http://localhost:4443/sse` with `transport: "sse"`. New clients should use `/mcp`.
+For stdio-only clients, wrap with `npx mcp-remote http://localhost:4443/mcp` the same way Claude Desktop does above.
 
 </details>
 

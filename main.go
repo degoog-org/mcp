@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
 	"errors"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -20,17 +23,20 @@ import (
 )
 
 const (
-	SERVER_NAME    = "degoog-mcp"
-	SERVER_VERSION = "0.2.0"
-	SHUTDOWN_WAIT  = 5 * time.Second
-	ROUTE_MCP      = "/mcp"
-	ROUTE_SSE      = "/sse"
-	ROUTE_LEGACY   = "/"
-	ROUTE_HEALTH   = "/healthz"
-	HEALTH_BODY    = "ok"
-	READ_TIMEOUT   = 30 * time.Second
-	WRITE_TIMEOUT  = 0
-	IDLE_TIMEOUT   = 120 * time.Second
+	SERVER_NAME     = "degoog-mcp"
+	SERVER_VERSION  = "0.2.0"
+	SHUTDOWN_WAIT   = 5 * time.Second
+	ROUTE_MCP       = "/mcp"
+	ROUTE_HEALTH    = "/healthz"
+	HEALTH_BODY     = "ok"
+	READ_TIMEOUT    = 30 * time.Second
+	WRITE_TIMEOUT   = 0
+	IDLE_TIMEOUT    = 120 * time.Second
+	HEADER_AUTHZ    = "Authorization"
+	HEADER_WWW_AUTH = "WWW-Authenticate"
+	BEARER_PREFIX   = "Bearer "
+	WWW_AUTH_VALUE  = "Bearer"
+	DENIED_BODY     = "unauthorized\n"
 )
 
 func main() {
@@ -57,7 +63,10 @@ func main() {
 	srv := mcp.NewServer(&mcp.Implementation{Name: SERVER_NAME, Version: SERVER_VERSION}, nil)
 	commands.Register(srv, sc, dg, cfg)
 
-	mux := buildMux(srv, log)
+	mux := buildMux(srv, cfg, log)
+	if cfg.AuthToken != "" {
+		log.Info("auth: inbound bearer auth enabled for %s", ROUTE_MCP)
+	}
 
 	httpSrv := &http.Server{
 		Addr:         listenAddr(cfg),
@@ -97,14 +106,11 @@ func listenAddr(cfg *config.Config) string {
 	return cfg.BindHost + ":" + cfg.Port
 }
 
-func buildMux(srv *mcp.Server, log *logger.Logger) *http.ServeMux {
+func buildMux(srv *mcp.Server, cfg *config.Config, log *logger.Logger) *http.ServeMux {
 	mcpHandler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return srv }, nil)
-	sseHandler := mcp.NewSSEHandler(func(*http.Request) *mcp.Server { return srv }, nil)
 
 	mux := http.NewServeMux()
-	mux.Handle(ROUTE_MCP, mcpHandler)
-	mux.Handle(ROUTE_SSE, sseHandler)
-	mux.Handle(ROUTE_LEGACY, legacySSE(sseHandler, log))
+	mux.Handle(ROUTE_MCP, bouncer(mcpHandler, cfg.AuthToken, log))
 	mux.HandleFunc(ROUTE_HEALTH, func(w http.ResponseWriter, r *http.Request) {
 		if _, werr := w.Write([]byte(HEALTH_BODY)); werr != nil {
 			log.Warn("health: write failed: %v", werr)
@@ -113,11 +119,32 @@ func buildMux(srv *mcp.Server, log *logger.Logger) *http.ServeMux {
 	return mux
 }
 
-func legacySSE(next http.Handler, log *logger.Logger) http.Handler {
+func bouncer(next http.Handler, token string, log *logger.Logger) http.Handler {
+	if token == "" {
+		return next
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Warn("http: legacy sse endpoint used path=%s", r.URL.Path)
+		if !tokenOK(r.Header.Get(HEADER_AUTHZ), token) {
+			log.Warn("auth: rejected request to %s", r.URL.Path)
+			w.Header().Set(HEADER_WWW_AUTH, WWW_AUTH_VALUE)
+			w.WriteHeader(http.StatusUnauthorized)
+			if _, werr := w.Write([]byte(DENIED_BODY)); werr != nil {
+				log.Warn("auth: write failed: %v", werr)
+			}
+			return
+		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func tokenOK(header, token string) bool {
+	parts := strings.Fields(header)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], strings.TrimSpace(BEARER_PREFIX)) {
+		return false
+	}
+	gotHash := sha256.Sum256([]byte(parts[1]))
+	tokenHash := sha256.Sum256([]byte(token))
+	return subtle.ConstantTimeCompare(gotHash[:], tokenHash[:]) == 1
 }
 
 func lightsOut(srv *http.Server, log *logger.Logger) {
