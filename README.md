@@ -58,7 +58,7 @@ Valid engine ids for `DEGOOG_MCP_ENGINES` (and the per-call `engines` argument) 
 ```yaml
 services:
   degoog-mcp:
-    image: ghcr.io/degoog-org/degoog-mcp:latest
+    image: ghcr.io/degoog-org/mcp:latest
     ports:
       - "4443:4443"
     environment:
@@ -87,7 +87,7 @@ services:
     restart: unless-stopped
 
   degoog-mcp:
-    image: ghcr.io/degoog-org/degoog-mcp:latest
+    image: ghcr.io/degoog-org/mcp:latest
     depends_on: [degoog]
     ports:
       - "4443:4443"
