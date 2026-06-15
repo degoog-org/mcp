@@ -19,7 +19,7 @@ func TestHealthOpen(t *testing.T) {
 	mux := buildMux(newServer(), &config.Config{}, logger.Get())
 
 	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, ROUTE_HEALTH, nil))
+	mux.ServeHTTP(rec, httptest.NewRequestWithContext(context.Background(), http.MethodGet, ROUTE_HEALTH, nil))
 	if rec.Code != http.StatusOK {
 		t.Fatalf("health status: want 200, got %d", rec.Code)
 	}
