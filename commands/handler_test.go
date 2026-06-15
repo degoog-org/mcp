@@ -31,7 +31,8 @@ func TestSearchHandlerReturnsConciseTextAndStructuredMetadata(t *testing.T) {
 	}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			t.Fatalf("encode: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
 	}))
 	defer srv.Close()
