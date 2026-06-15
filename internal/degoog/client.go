@@ -114,6 +114,7 @@ type Client struct {
 	http     *http.Client
 }
 
+// New returns a new Client configured with the provided base URL, API key, request timeout, and maximum bytes to read from error responses. The base URL is normalized by trimming trailing slashes.
 func New(base, apiKey string, timeout time.Duration, maxBytes int64) *Client {
 	return &Client{
 		base:     strings.TrimRight(base, "/"),
@@ -257,6 +258,9 @@ func (c *Client) setHeaders(req *http.Request) {
 	}
 }
 
+// capResults limits the results in a Response to a maximum count.
+// The Response is modified in-place. Returns the number of results that
+// were dropped, or 0 if no capping was applied.
 func capResults(out *Response, max int) int {
 	if max <= 0 || len(out.Results) <= max {
 		return 0

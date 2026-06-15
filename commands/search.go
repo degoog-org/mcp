@@ -20,6 +20,7 @@ type searchHandler struct {
 	defaultMax     int
 }
 
+// newSearchH constructs a searchHandler with the provided degoog client and configuration.
 func newSearchH(c *degoog.Client, cfg *config.Config) *searchHandler {
 	return &searchHandler{
 		client:         c,
@@ -83,6 +84,7 @@ func (h *searchHandler) pickMax(in int) int {
 	return h.defaultMax
 }
 
+// searchSummary generates a human-readable summary of the search results, combining the query and result count with optional metadata such as engines used, response time, and source distribution.
 func searchSummary(out tools.SearchOutput) string {
 	parts := []string{fmt.Sprintf("Degoog %s search for %q returned %d result(s)", out.Type, out.Query, out.Meta.ReturnedResults)}
 	if out.Meta.ResultsBeforeCap > 0 && out.Meta.DroppedByCap > 0 {
@@ -100,6 +102,7 @@ func searchSummary(out tools.SearchOutput) string {
 	return strings.Join(parts, "; ") + ". Structured content contains full results, timings, related searches, and cap/source metadata; call scrape with selected URLs for article text."
 }
 
+// sourceOverlap returns sources ranked by frequency in the search results, sorted by hit count in descending order, then alphabetically by source name.
 func sourceOverlap(results []degoog.Hit) []tools.SourceOverlap {
 	counts := make(map[string]int)
 	for _, r := range results {
@@ -127,6 +130,7 @@ func sourceOverlap(results []degoog.Hit) []tools.SourceOverlap {
 	return out
 }
 
+// formatSourceOverlap formats up to max entries from overlap as comma-separated source=count pairs.
 func formatSourceOverlap(overlap []tools.SourceOverlap, max int) string {
 	if max > len(overlap) {
 		max = len(overlap)

@@ -33,6 +33,7 @@ const (
 	IDLE_TIMEOUT   = 120 * time.Second
 )
 
+// main initializes the server infrastructure, starts the HTTP listener with MCP endpoints, and handles graceful shutdown on system signals or startup errors.
 func main() {
 	log := logger.Get()
 	cfg := config.Load()
@@ -93,10 +94,12 @@ func main() {
 	lightsOut(httpSrv, log)
 }
 
+// ListenAddr returns the network listen address from the configuration's bind host and port.
 func listenAddr(cfg *config.Config) string {
 	return cfg.BindHost + ":" + cfg.Port
 }
 
+// buildMux builds an HTTP request multiplexer for serving MCP streaming, SSE, and health check endpoints.
 func buildMux(srv *mcp.Server, log *logger.Logger) *http.ServeMux {
 	mcpHandler := mcp.NewStreamableHTTPHandler(func(*http.Request) *mcp.Server { return srv }, nil)
 	sseHandler := mcp.NewSSEHandler(func(*http.Request) *mcp.Server { return srv }, nil)
@@ -113,6 +116,7 @@ func buildMux(srv *mcp.Server, log *logger.Logger) *http.ServeMux {
 	return mux
 }
 
+// LegacySSE wraps an HTTP handler to serve the legacy SSE endpoint.
 func legacySSE(next http.Handler, log *logger.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Warn("http: legacy sse endpoint used path=%s", r.URL.Path)
@@ -120,6 +124,7 @@ func legacySSE(next http.Handler, log *logger.Logger) http.Handler {
 	})
 }
 
+// LightsOut gracefully shuts down the HTTP server with a configured timeout and logs any error or completion message.
 func lightsOut(srv *http.Server, log *logger.Logger) {
 	ctx, cancel := context.WithTimeout(context.Background(), SHUTDOWN_WAIT)
 	defer cancel()

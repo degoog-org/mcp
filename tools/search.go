@@ -58,6 +58,7 @@ type SourceOverlap struct {
 	Count  int    `json:"count"`
 }
 
+// SearchTool returns an MCP tool descriptor for the search capability.
 func SearchTool() *mcp.Tool {
 	return &mcp.Tool{
 		Name:        SEARCH_NAME,

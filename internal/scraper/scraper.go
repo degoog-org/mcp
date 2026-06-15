@@ -51,10 +51,12 @@ type Options struct {
 	MaxBytes    int64
 }
 
+New creates a Scraper with the provided cache, user agent, timeout, and maximum markdown length, using default values for other configuration options.
 func New(c *cache.Cache, ua string, timeout time.Duration, maxLen int) *Scraper {
 	return NewWithOptions(c, ua, timeout, Options{MaxLength: maxLen})
 }
 
+NewWithOptions creates a Scraper initialized with the provided cache, user agent, timeout, and options, applying defaults to unspecified option values.
 func NewWithOptions(c *cache.Cache, ua string, timeout time.Duration, opts Options) *Scraper {
 	opts = fillOpts(opts)
 	return &Scraper{
@@ -69,6 +71,7 @@ func NewWithOptions(c *cache.Cache, ua string, timeout time.Duration, opts Optio
 	}
 }
 
+// fillOpts returns opts with zero or negative fields populated with default values.
 func fillOpts(opts Options) Options {
 	if opts.MaxURLs <= 0 {
 		opts.MaxURLs = DEFAULT_MAX_URLS
@@ -194,6 +197,7 @@ func (s *Scraper) scrapeOne(ctx context.Context, raw string) Result {
 	return res
 }
 
+// readCap reads from r and returns up to maxBytes of data, with a boolean indicating whether the stream contained additional unread data. If maxBytes is zero or negative, the entire stream is read with no truncation indication.
 func readCap(r io.Reader, maxBytes int64) ([]byte, bool, error) {
 	if maxBytes <= 0 {
 		body, err := io.ReadAll(r)
@@ -210,6 +214,7 @@ func readCap(r io.Reader, maxBytes int64) ([]byte, bool, error) {
 	return body[:maxBytes], true, nil
 }
 
+// Thanos truncates a string using middle truncation when it exceeds maxLen, keeping the start and end while inserting a truncation marker between them.
 func Thanos(s string, maxLen int) string {
 	if maxLen <= 0 || len(s) <= maxLen {
 		return s

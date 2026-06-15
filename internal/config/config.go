@@ -58,6 +58,7 @@ type Config struct {
 	Engines     []string
 }
 
+// Load returns a Config populated with values from environment variables, using defaults for unset or invalid variables.
 func Load() *Config {
 	return &Config{
 		BindHost:    readStr(ENV_BIND_HOST, DEFAULT_BIND_HOST),
@@ -77,6 +78,7 @@ func Load() *Config {
 	}
 }
 
+// readNonNeg reads an integer from the environment variable key and returns it if non-negative, or def otherwise.
 func readNonNeg(key string, def int) int {
 	n := readInt(key, def)
 	if n < 0 {
@@ -86,6 +88,7 @@ func readNonNeg(key string, def int) int {
 	return n
 }
 
+// readList reads an environment variable and parses it as a comma-separated list of strings, excluding empty values. It returns nil if the variable is unset or empty.
 func readList(key string) []string {
 	v := strings.TrimSpace(os.Getenv(key))
 	if v == "" {
@@ -101,6 +104,7 @@ func readList(key string) []string {
 	return out
 }
 
+// readStr reads the environment variable specified by key and returns its value, or def if the variable is unset or empty.
 func readStr(key, def string) string {
 	v := os.Getenv(key)
 	if v == "" {
@@ -109,6 +113,7 @@ func readStr(key, def string) string {
 	return v
 }
 
+readInt reads the environment variable with the given key and returns its integer value, or the default value if the variable is unset, empty, or cannot be parsed as an integer.
 func readInt(key string, def int) int {
 	v := os.Getenv(key)
 	if v == "" {
@@ -122,6 +127,7 @@ func readInt(key string, def int) int {
 	return n
 }
 
+readPosInt reads an integer from an environment variable and returns it if positive, otherwise returns the default.
 func readPosInt(key string, def int) int {
 	n := readInt(key, def)
 	if n <= 0 {
@@ -131,6 +137,7 @@ func readPosInt(key string, def int) int {
 	return n
 }
 
+// readDur reads an environment variable, parses it as a time.Duration, and returns the parsed value. If the environment variable is unset, empty, or cannot be parsed as a duration, the default value is returned.
 func readDur(key string, def time.Duration) time.Duration {
 	v := os.Getenv(key)
 	if v == "" {

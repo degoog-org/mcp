@@ -46,6 +46,7 @@ func (h *scrapeHandler) handle(ctx context.Context, req *mcp.CallToolRequest, in
 	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: out.Summary}}}, out, nil
 }
 
+// scrapeCounts counts the number of successful and failed scrape results.
 func scrapeCounts(results []scraper.Result) (successes, failures int) {
 	for _, r := range results {
 		if r.Error != "" {
@@ -57,6 +58,9 @@ func scrapeCounts(results []scraper.Result) (successes, failures int) {
 	return successes, failures
 }
 
+// scrapeSummary generates a human-readable summary of scrape results,
+// including success and failure counts, failure details, and information
+// about the structured content format.
 func scrapeSummary(out tools.ScrapeOutput) string {
 	parts := []string{fmt.Sprintf("Degoog scrape returned %d successful and %d failed URL(s)", out.SuccessCount, out.FailureCount)}
 	if out.FailureCount > 0 {

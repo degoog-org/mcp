@@ -78,6 +78,9 @@ func (g *guardRT) RoundTrip(r *http.Request) (*http.Response, error) {
 	return g.base.RoundTrip(r)
 }
 
+// Polyjuice creates an HTTP client with URL and IP validation and browser-like request headers.
+//
+// ua is the user agent string to set on outgoing requests.
 func Polyjuice(ua string) *http.Client {
 	transport := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
@@ -101,6 +104,10 @@ func Polyjuice(ua string) *http.Client {
 	}
 }
 
+// CheckURL validates that a target URL is safe for scraping. It returns ErrBadScheme
+// if the scheme is not http or https, ErrBadHost if the URL is nil or has an empty
+// hostname, ErrBadIP if the hostname does not resolve to any allowed IP addresses,
+// or nil if validation succeeds.
 func CheckURL(ctx context.Context, target *url.URL) error {
 	if target == nil {
 		return ErrBadHost
@@ -115,6 +122,7 @@ func CheckURL(ctx context.Context, target *url.URL) error {
 	return err
 }
 
+// guardedDial dials a network connection by resolving the host and attempting to connect to each resolved IP address until one succeeds.
 func guardedDial(ctx context.Context, network, address string) (net.Conn, error) {
 	host, port, err := net.SplitHostPort(address)
 	if err != nil {
@@ -142,6 +150,10 @@ func guardedDial(ctx context.Context, network, address string) (net.Conn, error)
 	return nil, ErrBadIP
 }
 
+// resolveHost resolves a hostname to a list of allowed IP addresses.
+// The host parameter may be a hostname or a direct IP address.
+// Returns the list of allowed addresses or an error if resolution fails
+// or no allowed IPs remain.
 func resolveHost(ctx context.Context, host string) ([]netip.Addr, error) {
 	if ip, err := netip.ParseAddr(host); err == nil {
 		return vetIPs([]netip.Addr{ip})
@@ -163,6 +175,7 @@ func resolveHost(ctx context.Context, host string) ([]netip.Addr, error) {
 	return vetIPs(ips)
 }
 
+// vetIPs filters the input IPs to keep only those that are allowed, returning the filtered slice or ErrBadIP if no IPs remain.
 func vetIPs(ips []netip.Addr) ([]netip.Addr, error) {
 	allowed := make([]netip.Addr, 0, len(ips))
 	for _, ip := range ips {
@@ -178,6 +191,7 @@ func vetIPs(ips []netip.Addr) ([]netip.Addr, error) {
 	return allowed, nil
 }
 
+// isAllowedIP reports whether an IP address can be used. It returns true if the IP is valid, globally unicast, and not private, loopback, link-local, multicast, unspecified, or contained in a blocked network range; false otherwise.
 func isAllowedIP(ip netip.Addr) bool {
 	if !ip.IsValid() || !ip.IsGlobalUnicast() || ip.IsPrivate() || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsMulticast() || ip.IsUnspecified() {
 		return false

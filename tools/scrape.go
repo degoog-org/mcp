@@ -26,6 +26,7 @@ type ScrapeOutput struct {
 	FailureCount int              `json:"failureCount"`
 }
 
+// ScrapeTool returns a configured MCP tool for fetching and converting URLs to Markdown content.
 func ScrapeTool() *mcp.Tool {
 	return &mcp.Tool{
 		Name:        SCRAPE_NAME,
