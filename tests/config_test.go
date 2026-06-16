@@ -18,6 +18,7 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv(config.ENV_CACHE_EXP, "")
 	t.Setenv(config.ENV_CACHE_SIZE, "")
 	t.Setenv(config.ENV_USER_AGENT, "")
+	t.Setenv(config.ENV_DISABLE_SCRAPE, "")
 
 	cfg := config.Load()
 
@@ -51,6 +52,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.UserAgent != config.DEFAULT_USER_AGENT {
 		t.Errorf("UserAgent default mismatch")
 	}
+	if cfg.DisableScrape {
+		t.Errorf("DisableScrape default: want false")
+	}
 }
 
 func TestLoadOverrides(t *testing.T) {
@@ -64,6 +68,7 @@ func TestLoadOverrides(t *testing.T) {
 	t.Setenv(config.ENV_CACHE_EXP, "2m")
 	t.Setenv(config.ENV_CACHE_SIZE, "16")
 	t.Setenv(config.ENV_USER_AGENT, "CustomAgent/1.0")
+	t.Setenv(config.ENV_DISABLE_SCRAPE, "true")
 
 	cfg := config.Load()
 
@@ -96,6 +101,20 @@ func TestLoadOverrides(t *testing.T) {
 	}
 	if cfg.UserAgent != "CustomAgent/1.0" {
 		t.Errorf("UserAgent override mismatch")
+	}
+	if !cfg.DisableScrape {
+		t.Errorf("DisableScrape override: want true")
+	}
+}
+
+func TestDisableScrapeBoolParsing(t *testing.T) {
+	for _, value := range []string{"1", "true", "TRUE", "yes", "on"} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv(config.ENV_DISABLE_SCRAPE, value)
+			if !config.Load().DisableScrape {
+				t.Fatalf("DisableScrape %q: want true", value)
+			}
+		})
 	}
 }
 

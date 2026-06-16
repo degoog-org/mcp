@@ -66,14 +66,52 @@ func TestSearchHandlerReturnsConciseTextAndStructuredMetadata(t *testing.T) {
 func TestScrapeHelpersCountAndSummarizeFailures(t *testing.T) {
 	results := []scraper.Result{
 		{URL: "https://ok.example", Title: "ok", Content: "body"},
-		{URL: "https://bad.example", Error: "http 403"},
+		{URL: "https://bad.example", Error: "lookup bad.example on 127.0.0.11:53: no such host"},
 	}
 	successes, failures := scrapeCounts(results)
 	if successes != 1 || failures != 1 {
 		t.Fatalf("counts: got %d/%d", successes, failures)
 	}
 	summary := scrapeSummary(tools.ScrapeOutput{Results: results, SuccessCount: successes, FailureCount: failures})
-	if !strings.Contains(summary, "https://bad.example: http 403") {
+	if !strings.Contains(summary, "https://bad.example: DNS lookup failed for bad.example: no such host") {
 		t.Fatalf("summary missing failed url: %s", summary)
+	}
+	if strings.Contains(summary, "127.0.0.11:53") {
+		t.Fatalf("summary should hide Docker DNS resolver internals: %s", summary)
+	}
+	if !strings.Contains(summary, "Do not stop") || !strings.Contains(summary, "previous search results") {
+		t.Fatalf("summary should tell agents to continue from available context: %s", summary)
+	}
+	if !strings.Contains(summary, "Tell the user which URLs failed") || !strings.Contains(summary, "alongside the available results") {
+		t.Fatalf("summary should tell agents to disclose failures with results: %s", summary)
+	}
+}
+
+func TestRegisterCanDisableScrapeTool(t *testing.T) {
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "test"}, nil)
+	registered := Register(server, nil, nil, &config.Config{DisableScrape: true})
+	if len(registered) != 1 || registered[0] != tools.SEARCH_NAME {
+		t.Fatalf("registered tools with scrape disabled: got %#v", registered)
+	}
+}
+
+func TestToolDescriptionsGuideModelsAwayFromInventedScrapeURLs(t *testing.T) {
+	searchDesc := tools.SearchTool().Description
+	for _, want := range []string{"answer from snippets", "Do not invent URLs", "If scrape fails"} {
+		if !strings.Contains(searchDesc, want) {
+			t.Fatalf("search description missing %q: %s", want, searchDesc)
+		}
+	}
+
+	searchOnlyDesc := tools.SearchTool(false).Description
+	if !strings.Contains(searchOnlyDesc, "No scrape tool is available") {
+		t.Fatalf("search-only description should mention scrape is unavailable: %s", searchOnlyDesc)
+	}
+
+	scrapeDesc := tools.ScrapeTool().Description
+	for _, want := range []string{"Do not invent", "only URLs returned by search", "do not stop", "Tell the user which URLs failed"} {
+		if !strings.Contains(scrapeDesc, want) {
+			t.Fatalf("scrape description missing %q: %s", want, scrapeDesc)
+		}
 	}
 }
