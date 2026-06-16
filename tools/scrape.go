@@ -12,6 +12,8 @@ const (
 
 USE THIS when deep, article-level context is needed: after a 'search' surfaces promising URLs, when the user gives you a link to analyze, or when a snippet isn't enough to answer. Multiple URLs are fetched concurrently. Every requested URL gets a result entry: successful rows include title/content, failed rows include an error string so agents can retry or choose another source.
 
+Do not invent, guess, or rewrite URLs for this tool. Use only URLs returned by search or explicitly provided by the user. If one or all scrape rows fail, do not stop: use successful rows plus the previous search results as context, or choose another URL from the same search result set. Tell the user which URLs failed alongside the available results instead of hiding failed attempts.
+
 Long pages are truncated head + tail to fit a token budget; the middle is removed and a marker is inserted.`
 )
 

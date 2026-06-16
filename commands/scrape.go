@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -34,7 +35,7 @@ func (h *scrapeHandler) handle(ctx context.Context, req *mcp.CallToolRequest, in
 		return nil, tools.ScrapeOutput{}, ErrTooManyURLs
 	}
 	logger.Get().Info("scrape: dispatching %d url(s)", len(in.URLs))
-	results := h.sc.ScrapeMany(ctx, in.URLs)
+	results := cleanScrapeResultErrors(h.sc.ScrapeMany(ctx, in.URLs))
 	successes, failures := scrapeCounts(results)
 	logger.Get().Info("scrape: returning %d successful and %d failed result(s) out of %d", successes, failures, len(in.URLs))
 	out := tools.ScrapeOutput{
@@ -57,16 +58,36 @@ func scrapeCounts(results []scraper.Result) (successes, failures int) {
 	return successes, failures
 }
 
+func cleanScrapeResultErrors(results []scraper.Result) []scraper.Result {
+	cleaned := make([]scraper.Result, len(results))
+	copy(cleaned, results)
+	for i := range cleaned {
+		if cleaned[i].Error != "" {
+			cleaned[i].Error = cleanScrapeError(cleaned[i].Error)
+		}
+	}
+	return cleaned
+}
+
 func scrapeSummary(out tools.ScrapeOutput) string {
 	parts := []string{fmt.Sprintf("Degoog scrape returned %d successful and %d failed URL(s)", out.SuccessCount, out.FailureCount)}
 	if out.FailureCount > 0 {
 		fails := make([]string, 0, out.FailureCount)
 		for _, r := range out.Results {
 			if r.Error != "" {
-				fails = append(fails, fmt.Sprintf("%s: %s", r.URL, r.Error))
+				fails = append(fails, fmt.Sprintf("%s: %s", r.URL, cleanScrapeError(r.Error)))
 			}
 		}
 		parts = append(parts, "failures: "+strings.Join(fails, "; "))
 	}
-	return strings.Join(parts, "; ") + ". Structured content contains one row per requested URL with title/content or error."
+	return strings.Join(parts, "; ") + ". Structured content contains one row per requested URL with title/content or error. Do not stop if scrape failed; use successful rows, previous search results, or try another search result URL. Tell the user which URLs failed alongside the available results."
+}
+
+var dockerDNSLookupRE = regexp.MustCompile(`^lookup ([^ ]+) on 127\.0\.0\.11:53: (.+)$`)
+
+func cleanScrapeError(err string) string {
+	if match := dockerDNSLookupRE.FindStringSubmatch(err); match != nil {
+		return fmt.Sprintf("DNS lookup failed for %s: %s", match[1], match[2])
+	}
+	return err
 }

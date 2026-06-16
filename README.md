@@ -44,6 +44,7 @@ Listens on `4443` by default. Modern MCP endpoint at `/mcp`, healthcheck at `/he
 | `DEGOOG_MCP_MAX_RESPONSE_BYTES`     | `2097152`                  | Max downloaded bytes per scraped response before readability.      |
 | `DEGOOG_MCP_CACHE_EXPIRY`           | `30m`                      | Scrape cache TTL.                                                  |
 | `DEGOOG_MCP_CACHE_SIZE_MB`          | `64`                       | Scrape cache hard memory cap.                                      |
+| `DEGOOG_MCP_DISABLE_SCRAPE`         | `false`                    | When true, do not register the `scrape` tool; `search` remains available and tells agents to answer from snippets/results. |
 | `DEGOOG_MCP_LOG_LEVEL`              | `info`                     | `debug` / `info` / `warn` / `error`.                               |
 | `DEGOOG_MCP_USER_AGENT`             | a believable Chrome UA     | Used by the scraper when fetching pages.                           |
 
