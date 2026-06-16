@@ -7,21 +7,22 @@ import (
 )
 
 const (
-	SEARCH_NAME = "search"
-	SEARCH_DESC = `Run a meta-search query against the Degoog aggregator. Returns merged, deduped, scored results pulled from multiple search engines in one call.
+	SEARCH_NAME        = "search"
+	SEARCH_DESC_COMMON = `Run a meta-search query against the Degoog aggregator. Returns merged, deduped, scored results pulled from multiple search engines in one call.
 
 USE THIS FIRST for quick wins and factual lookups: when you need a fact, want authoritative URLs to verify a claim, or want to discover what exists before drilling deeper. Cheap and fast.
 
-For simple factual questions, answer from snippets and structured results when they are sufficient. Do not invent URLs or modify result URLs. If deeper article content is needed, scrape only promising URLs returned by search or explicitly provided by the user.
-
-If scrape fails or is unavailable, do not stop: continue from the search snippets, titles, related searches, and source metadata, or try another URL from these search results. Tell the user which URLs failed alongside the available results instead of hiding failed attempts.
+For simple factual questions, answer from snippets and structured results when they are sufficient. Do not invent URLs or modify result URLs.
 
 Optional parameters mirror the Degoog HTTP API: result 'type' (web|images|videos|news), 'page' (1-10), time window ('any'|'hour'|'day'|'week'|'month'|'year'|'custom' with dateFrom/dateTo as 'YYYY MM DD'), and 'lang' (ISO 639-1).
 
 To keep responses small, set 'maxResults' to cap how many merged results come back (top-scored kept). Use 'engines' to restrict the query to specific engine ids (see /api/extensions?type=engine on your Degoog instance); leave it empty to use the instance defaults.
 
-Agent ergonomics: the text response is a concise summary, while structuredContent contains full results, engine timings, related searches, and metadata including cap/drop counts and source overlap. Use scrape on selected URLs for full article text.`
-	SEARCH_DESC_NO_SCRAPE = SEARCH_DESC + `
+Agent ergonomics: the text response is a concise summary, while structuredContent contains full results, engine timings, related searches, and metadata including cap/drop counts and source overlap.`
+	SEARCH_DESC = SEARCH_DESC_COMMON + `
+
+If deeper article content is needed, scrape only promising URLs returned by search or explicitly provided by the user. If scrape fails, do not stop: continue from the search snippets, titles, related searches, and source metadata, or try another URL from these search results. Tell the user which URLs failed alongside the available results instead of hiding failed attempts.`
+	SEARCH_DESC_NO_SCRAPE = SEARCH_DESC_COMMON + `
 
 No scrape tool is available on this MCP server. Use the returned snippets, titles, URLs, related searches, and metadata as the available context, and answer transparently from that evidence.`
 )

@@ -107,6 +107,11 @@ func TestToolDescriptionsGuideModelsAwayFromInventedScrapeURLs(t *testing.T) {
 	if !strings.Contains(searchOnlyDesc, "No scrape tool is available") {
 		t.Fatalf("search-only description should mention scrape is unavailable: %s", searchOnlyDesc)
 	}
+	for _, forbidden := range []string{"scrape only promising URLs", "Use scrape on selected URLs", "If scrape fails"} {
+		if strings.Contains(searchOnlyDesc, forbidden) {
+			t.Fatalf("search-only description should not include scrape-use instruction %q: %s", forbidden, searchOnlyDesc)
+		}
+	}
 
 	scrapeDesc := tools.ScrapeTool().Description
 	for _, want := range []string{"Do not invent", "only URLs returned by search", "do not stop", "Tell the user which URLs failed"} {
