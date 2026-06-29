@@ -26,6 +26,12 @@ const (
 	ENV_ENGINES        = "DEGOOG_MCP_ENGINES"
 	ENV_AUTH_TOKEN     = "DEGOOG_MCP_AUTH_TOKEN"
 	ENV_DISABLE_SCRAPE = "DEGOOG_MCP_DISABLE_SCRAPE"
+	ENV_SEARCH_TEXT    = "DEGOOG_MCP_SEARCH_TEXT"
+
+	SEARCH_TEXT_FULL      = "full"
+	SEARCH_TEXT_RESULTS   = "results"
+	SEARCH_TEXT_BREAKDOWN = "breakdown"
+	SEARCH_TEXT_NONE      = "none"
 
 	DEFAULT_BIND_HOST   = ""
 	DEFAULT_PORT        = "4443"
@@ -39,6 +45,7 @@ const (
 	DEFAULT_USER_AGENT  = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 	DEFAULT_DEGOOG_URL  = "http://degoog:4444"
 	DEFAULT_MAX_RESULTS = 0
+	DEFAULT_SEARCH_TEXT = SEARCH_TEXT_NONE
 
 	LIST_SEP = ","
 )
@@ -60,6 +67,7 @@ type Config struct {
 	Engines       []string
 	AuthToken     string
 	DisableScrape bool
+	SearchText    string
 }
 
 func Load() *Config {
@@ -80,6 +88,21 @@ func Load() *Config {
 		Engines:       readList(ENV_ENGINES),
 		AuthToken:     strings.TrimSpace(os.Getenv(ENV_AUTH_TOKEN)),
 		DisableScrape: readBool(ENV_DISABLE_SCRAPE, false),
+		SearchText:    readSearchText(ENV_SEARCH_TEXT, DEFAULT_SEARCH_TEXT),
+	}
+}
+
+func readSearchText(key, def string) string {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
+	if v == "" {
+		return def
+	}
+	switch v {
+	case SEARCH_TEXT_FULL, SEARCH_TEXT_RESULTS, SEARCH_TEXT_BREAKDOWN, SEARCH_TEXT_NONE:
+		return v
+	default:
+		logger.Get().Warn("config: invalid search text for %s=%q, falling back to %s", key, os.Getenv(key), def)
+		return def
 	}
 }
 

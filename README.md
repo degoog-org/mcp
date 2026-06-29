@@ -6,7 +6,7 @@
 
 Lightweight Go sidecar that exposes [Degoog](../README.md) to LLMs via the [Model Context Protocol](https://modelcontextprotocol.io). Speaks modern MCP Streamable HTTP at `/mcp`, runs in a tiny `scratch` container, and gives any MCP-capable client two tools:
 
-- **`search`** - fast meta-search, returns a concise text summary plus structured URLs, snippets, engine timings, cap metadata, and source overlap.
+- **`search`** - fast meta-search, returns model-readable plain-text results plus structured URLs, snippets, engine timings, cap metadata, and source overlap.
 - **`scrape`** - fetches URLs concurrently, returns clean Markdown plus one structured row per requested URL, including explicit error rows for failures.
 
 **Still in beta.** Not intended for production use yet.
@@ -38,6 +38,7 @@ Listens on `4443` by default. Modern MCP endpoint at `/mcp`, healthcheck at `/he
 | `DEGOOG_MCP_TIMEOUT`                | `15s`                      | Per-request timeout for both Degoog calls and scraped URLs.        |
 | `DEGOOG_MCP_MAX_RESULTS`            | `0`                        | Cap on merged `search` results (top-scored kept). `0` = no cap. Trims context for small-window models. Overridable per call. |
 | `DEGOOG_MCP_ENGINES`                | _(empty)_                  | Comma-separated engine ids to restrict every `search` to (e.g. `brave,duckduckgo`). Empty = instance defaults. Overridable per call. |
+| `DEGOOG_MCP_SEARCH_TEXT`            | `none`                     | Visible `search` text. `full` returns breakdown + result rows + scrape guidance. `results` returns only titles, URLs, snippets, and scrape guidance. `breakdown` returns only query/cap/source metadata plus the visible-text/structuredContent explanation. `none` emits no visible search text and relies on `structuredContent`. |
 | `DEGOOG_MCP_MAX_LENGTH`             | `12000`                    | Max scraped-markdown length before head+tail truncation.           |
 | `DEGOOG_MCP_MAX_URLS`               | `8`                        | Max URLs accepted by one `scrape` tool call.                       |
 | `DEGOOG_MCP_SCRAPE_CONCURRENCY`     | `4`                        | Max concurrent URL fetches inside one `scrape` call.               |

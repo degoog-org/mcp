@@ -18,6 +18,7 @@ type searchHandler struct {
 	client         *degoog.Client
 	defaultEngines []string
 	defaultMax     int
+	searchText     string
 }
 
 func newSearchH(c *degoog.Client, cfg *config.Config) *searchHandler {
@@ -25,6 +26,7 @@ func newSearchH(c *degoog.Client, cfg *config.Config) *searchHandler {
 		client:         c,
 		defaultEngines: cfg.Engines,
 		defaultMax:     cfg.MaxResults,
+		searchText:     cfg.SearchText,
 	}
 }
 
@@ -65,8 +67,8 @@ func (h *searchHandler) handle(ctx context.Context, req *mcp.CallToolRequest, in
 			SourceOverlap:    sourceOverlap(resp.Results),
 		},
 	}
-	out.Summary = searchSummary(out)
-	return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: out.Summary}}}, out, nil
+	out.Summary = searchBreakdownLine(out)
+	return &mcp.CallToolResult{Content: searchVisibleContent(out, h.searchText)}, out, nil
 }
 
 func (h *searchHandler) pickEngines(in []string) []string {
@@ -83,7 +85,7 @@ func (h *searchHandler) pickMax(in int) int {
 	return h.defaultMax
 }
 
-func searchSummary(out tools.SearchOutput) string {
+func searchBreakdownLine(out tools.SearchOutput) string {
 	parts := []string{fmt.Sprintf("Degoog %s search for %q returned %d result(s)", out.Type, out.Query, out.Meta.ReturnedResults)}
 	if out.Meta.ResultsBeforeCap > 0 && out.Meta.DroppedByCap > 0 {
 		parts = append(parts, fmt.Sprintf("%d before maxResults cap; %d dropped", out.Meta.ResultsBeforeCap, out.Meta.DroppedByCap))
@@ -97,7 +99,85 @@ func searchSummary(out tools.SearchOutput) string {
 	if len(out.Meta.SourceOverlap) > 0 {
 		parts = append(parts, "top sources: "+formatSourceOverlap(out.Meta.SourceOverlap, 5))
 	}
-	return strings.Join(parts, "; ") + ". Structured content contains full results, timings, related searches, and cap/source metadata; call scrape with selected URLs for article text."
+	return strings.Join(parts, "; ") + "."
+}
+
+func searchVisibleContent(out tools.SearchOutput, mode string) []mcp.Content {
+	text := searchVisibleText(out, mode)
+	if text == "" {
+		return []mcp.Content{}
+	}
+	return []mcp.Content{&mcp.TextContent{Text: text}}
+}
+
+func searchVisibleText(out tools.SearchOutput, mode string) string {
+	switch mode {
+	case config.SEARCH_TEXT_NONE:
+		return ""
+	case config.SEARCH_TEXT_BREAKDOWN:
+		return strings.Join([]string{searchBreakdownLine(out), searchOutputExplanation()}, "\n\n")
+	case config.SEARCH_TEXT_RESULTS:
+		return strings.Join([]string{searchResultsText(out), searchScrapeGuidance()}, "\n\n")
+	case config.SEARCH_TEXT_FULL, "":
+		return strings.Join([]string{searchBreakdownLine(out), searchOutputExplanation(), searchResultsText(out), searchScrapeGuidance()}, "\n\n")
+	default:
+		return strings.Join([]string{searchBreakdownLine(out), searchOutputExplanation(), searchResultsText(out), searchScrapeGuidance()}, "\n\n")
+	}
+}
+
+func searchOutputExplanation() string {
+	return "Visible text: model-readable search context. structuredContent: exact JSON with full result objects, engine timings, related searches, and cap/source metadata. Use visible text when your client/model does not reliably expose structuredContent; use structuredContent when exact fields are available."
+}
+
+func searchScrapeGuidance() string {
+	return "Use snippets for simple answers. If snippets are not enough, call scrape automatically on the most relevant returned URLs; do not ask permission unless your client requires it."
+}
+
+func searchResultsText(out tools.SearchOutput) string {
+	if len(out.Results) == 0 {
+		return "Results: none returned."
+	}
+
+	var b strings.Builder
+	b.WriteString("Results:\n")
+	for i, r := range out.Results {
+		title := cleanLine(r.Title)
+		if title == "" {
+			title = "Untitled result"
+		}
+		b.WriteString(fmt.Sprintf("%d. %s\n", i+1, title))
+		if strings.TrimSpace(r.URL) != "" {
+			b.WriteString(fmt.Sprintf("   URL: %s\n", strings.TrimSpace(r.URL)))
+		}
+		if len(r.Sources) > 0 {
+			b.WriteString(fmt.Sprintf("   Sources: %s\n", strings.Join(r.Sources, ", ")))
+		} else if strings.TrimSpace(r.Source) != "" {
+			b.WriteString(fmt.Sprintf("   Source: %s\n", strings.TrimSpace(r.Source)))
+		}
+		if snippet := cleanLine(r.Snippet); snippet != "" {
+			b.WriteString(fmt.Sprintf("   Snippet: %s\n", snippet))
+		}
+		if i < len(out.Results)-1 {
+			b.WriteString("\n")
+		}
+	}
+
+	if len(out.RelatedSearches) > 0 {
+		b.WriteString("\n\nRelated searches:\n")
+		for _, related := range out.RelatedSearches {
+			if clean := cleanLine(related); clean != "" {
+				b.WriteString("- ")
+				b.WriteString(clean)
+				b.WriteString("\n")
+			}
+		}
+	}
+
+	return b.String()
+}
+
+func cleanLine(s string) string {
+	return strings.Join(strings.Fields(s), " ")
 }
 
 func sourceOverlap(results []degoog.Hit) []tools.SourceOverlap {

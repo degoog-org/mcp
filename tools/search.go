@@ -18,10 +18,10 @@ Optional parameters mirror the Degoog HTTP API: result 'type' (web|images|videos
 
 To keep responses small, set 'maxResults' to cap how many merged results come back (top-scored kept). Use 'engines' to restrict the query to specific engine ids (see /api/extensions?type=engine on your Degoog instance); leave it empty to use the instance defaults.
 
-Agent ergonomics: the text response is a concise summary, while structuredContent contains full results, engine timings, related searches, and metadata including cap/drop counts and source overlap.`
+Output shape: Visible text is the model-readable plain-text search results page (metadata, titles, URLs, snippets, and guidance). structuredContent is the exact machine-readable JSON payload with full results, engine timings, related searches, cap/drop counts, and source overlap. Prefer visible text when the client/model does not expose structuredContent reliably; prefer structuredContent when you need exact fields.`
 	SEARCH_DESC = SEARCH_DESC_COMMON + `
 
-If deeper article content is needed, scrape only promising URLs returned by search or explicitly provided by the user. If scrape fails, do not stop: continue from the search snippets, titles, related searches, and source metadata, or try another URL from these search results. Tell the user which URLs failed alongside the available results instead of hiding failed attempts.`
+If snippets are insufficient for the user's question, call scrape automatically on the most relevant URLs returned by this search. Do not ask for permission unless your client requires confirmation. If scrape fails, do not stop: continue from the search snippets, titles, related searches, and source metadata, or try another URL from these search results. Tell the user which URLs failed alongside the available results instead of hiding failed attempts.`
 	SEARCH_DESC_NO_SCRAPE = SEARCH_DESC_COMMON + `
 
 No scrape tool is available on this MCP server. Use the returned snippets, titles, URLs, related searches, and metadata as the available context, and answer transparently from that evidence.`

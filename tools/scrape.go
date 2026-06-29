@@ -10,7 +10,7 @@ const (
 	SCRAPE_NAME = "scrape"
 	SCRAPE_DESC = `Fetch one or more URLs and return their main article content as clean Markdown.
 
-USE THIS when deep, article-level context is needed: after a 'search' surfaces promising URLs, when the user gives you a link to analyze, or when a snippet isn't enough to answer. Multiple URLs are fetched concurrently. Every requested URL gets a result entry: successful rows include title/content, failed rows include an error string so agents can retry or choose another source.
+USE THIS when deep, article-level context is needed: after a search surfaces promising URLs, when the user gives you a link to analyze, or when snippets are not enough to answer accurately. Use this automatically after search when the answer needs details beyond titles/snippets; do not ask for permission unless your client requires confirmation. Multiple URLs are fetched concurrently. Every requested URL gets a result entry: successful rows include title/content, failed rows include an error string so agents can retry or choose another source.
 
 Do not invent, guess, or rewrite URLs for this tool. Use only URLs returned by search or explicitly provided by the user. If one or all scrape rows fail, do not stop: use successful rows plus the previous search results as context, or choose another URL from the same search result set. Tell the user which URLs failed alongside the available results instead of hiding failed attempts.
 

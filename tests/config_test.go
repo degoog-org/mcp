@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ func TestLoadDefaults(t *testing.T) {
 	t.Setenv(config.ENV_CACHE_SIZE, "")
 	t.Setenv(config.ENV_USER_AGENT, "")
 	t.Setenv(config.ENV_DISABLE_SCRAPE, "")
+	t.Setenv(config.ENV_SEARCH_TEXT, "")
 
 	cfg := config.Load()
 
@@ -55,6 +57,9 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.DisableScrape {
 		t.Errorf("DisableScrape default: want false")
 	}
+	if cfg.SearchText != config.DEFAULT_SEARCH_TEXT {
+		t.Errorf("SearchText default: want %s, got %s", config.DEFAULT_SEARCH_TEXT, cfg.SearchText)
+	}
 }
 
 func TestLoadOverrides(t *testing.T) {
@@ -69,6 +74,7 @@ func TestLoadOverrides(t *testing.T) {
 	t.Setenv(config.ENV_CACHE_SIZE, "16")
 	t.Setenv(config.ENV_USER_AGENT, "CustomAgent/1.0")
 	t.Setenv(config.ENV_DISABLE_SCRAPE, "true")
+	t.Setenv(config.ENV_SEARCH_TEXT, config.SEARCH_TEXT_BREAKDOWN)
 
 	cfg := config.Load()
 
@@ -104,6 +110,26 @@ func TestLoadOverrides(t *testing.T) {
 	}
 	if !cfg.DisableScrape {
 		t.Errorf("DisableScrape override: want true")
+	}
+	if cfg.SearchText != config.SEARCH_TEXT_BREAKDOWN {
+		t.Errorf("SearchText override: got %s", cfg.SearchText)
+	}
+}
+
+func TestSearchTextParsing(t *testing.T) {
+	for _, value := range []string{config.SEARCH_TEXT_FULL, config.SEARCH_TEXT_RESULTS, config.SEARCH_TEXT_BREAKDOWN, config.SEARCH_TEXT_NONE, "RESULTS", " Breakdown "} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv(config.ENV_SEARCH_TEXT, value)
+			got := config.Load().SearchText
+			if got != strings.ToLower(strings.TrimSpace(value)) {
+				t.Fatalf("SearchText %q: got %q", value, got)
+			}
+		})
+	}
+
+	t.Setenv(config.ENV_SEARCH_TEXT, "nope")
+	if got := config.Load().SearchText; got != config.DEFAULT_SEARCH_TEXT {
+		t.Fatalf("bad SearchText should fall back to default, got %q", got)
 	}
 }
 
