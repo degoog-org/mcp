@@ -19,6 +19,7 @@ type searchHandler struct {
 	defaultEngines []string
 	defaultMax     int
 	searchText     string
+	scrapeEnabled  bool
 }
 
 func newSearchH(c *degoog.Client, cfg *config.Config) *searchHandler {
@@ -27,6 +28,7 @@ func newSearchH(c *degoog.Client, cfg *config.Config) *searchHandler {
 		defaultEngines: cfg.Engines,
 		defaultMax:     cfg.MaxResults,
 		searchText:     cfg.SearchText,
+		scrapeEnabled:  !cfg.DisableScrape,
 	}
 }
 
@@ -67,8 +69,8 @@ func (h *searchHandler) handle(ctx context.Context, req *mcp.CallToolRequest, in
 			SourceOverlap:    sourceOverlap(resp.Results),
 		},
 	}
-	out.Summary = searchBreakdownLine(out)
-	return &mcp.CallToolResult{Content: searchVisibleContent(out, h.searchText)}, out, nil
+	out.Summary = searchStructuredSummary(out, h.scrapeEnabled)
+	return &mcp.CallToolResult{Content: searchVisibleContent(out, h.searchText, h.scrapeEnabled)}, out, nil
 }
 
 func (h *searchHandler) pickEngines(in []string) []string {
@@ -102,35 +104,43 @@ func searchBreakdownLine(out tools.SearchOutput) string {
 	return strings.Join(parts, "; ") + "."
 }
 
-func searchVisibleContent(out tools.SearchOutput, mode string) []mcp.Content {
-	text := searchVisibleText(out, mode)
+func searchVisibleContent(out tools.SearchOutput, mode string, scrapeEnabled bool) []mcp.Content {
+	text := searchVisibleText(out, mode, scrapeEnabled)
 	if text == "" {
 		return []mcp.Content{}
 	}
 	return []mcp.Content{&mcp.TextContent{Text: text}}
 }
 
-func searchVisibleText(out tools.SearchOutput, mode string) string {
+func searchVisibleText(out tools.SearchOutput, mode string, scrapeEnabled bool) string {
+	guidance := searchFollowupGuidance(scrapeEnabled)
 	switch mode {
 	case config.SEARCH_TEXT_NONE:
 		return ""
 	case config.SEARCH_TEXT_BREAKDOWN:
-		return strings.Join([]string{searchBreakdownLine(out), searchOutputExplanation()}, "\n\n")
+		return strings.Join([]string{searchBreakdownLine(out), searchOutputExplanation(), guidance}, "\n\n")
 	case config.SEARCH_TEXT_RESULTS:
-		return strings.Join([]string{searchResultsText(out), searchScrapeGuidance()}, "\n\n")
+		return strings.Join([]string{searchResultsText(out), guidance}, "\n\n")
 	case config.SEARCH_TEXT_FULL, "":
-		return strings.Join([]string{searchBreakdownLine(out), searchOutputExplanation(), searchResultsText(out), searchScrapeGuidance()}, "\n\n")
+		return strings.Join([]string{searchBreakdownLine(out), searchOutputExplanation(), searchResultsText(out), guidance}, "\n\n")
 	default:
-		return strings.Join([]string{searchBreakdownLine(out), searchOutputExplanation(), searchResultsText(out), searchScrapeGuidance()}, "\n\n")
+		return strings.Join([]string{searchBreakdownLine(out), searchOutputExplanation(), searchResultsText(out), guidance}, "\n\n")
 	}
 }
 
 func searchOutputExplanation() string {
-	return "Visible text: model-readable search context. structuredContent: exact JSON with full result objects, engine timings, related searches, and cap/source metadata. Use visible text when your client/model does not reliably expose structuredContent; use structuredContent when exact fields are available."
+	return "Visible text: model-readable search context. structuredContent: exact JSON with full result objects, engine timings, related searches, cap/source metadata, and follow-up guidance. Use visible text when your client/model does not reliably expose structuredContent; use structuredContent when exact fields are available."
 }
 
-func searchScrapeGuidance() string {
-	return "Use snippets for simple answers. If snippets are not enough, call scrape automatically on the most relevant returned URLs; do not ask permission unless your client requires it."
+func searchStructuredSummary(out tools.SearchOutput, scrapeEnabled bool) string {
+	return searchBreakdownLine(out) + " " + searchFollowupGuidance(scrapeEnabled)
+}
+
+func searchFollowupGuidance(scrapeEnabled bool) string {
+	if !scrapeEnabled {
+		return "No scrape tool is available on this MCP server. Use returned snippets, titles, URLs, related searches, and source metadata as the available evidence."
+	}
+	return "Use snippets for simple answers. For research or when snippets are insufficient, call scrape automatically on the most relevant returned URLs from this search; do not ask permission unless your client requires it."
 }
 
 func searchResultsText(out tools.SearchOutput) string {

@@ -84,7 +84,7 @@ func TestSearchTextFullIncludesStatusResultsAndGuidance(t *testing.T) {
 		"Kurt Russell",
 		"2. Second cast result",
 		"https://b.example/cast",
-		"If snippets are not enough",
+		"For research or when snippets are insufficient",
 		"call scrape automatically",
 	} {
 		if !strings.Contains(text, want) {
@@ -120,14 +120,17 @@ func TestSearchTextModesAreComposable(t *testing.T) {
 
 	t.Run("breakdown only", func(t *testing.T) {
 		h := newSearchTestHandler(t, &config.Config{SearchText: config.SEARCH_TEXT_BREAKDOWN})
-		text, _, contentCount := callSearchText(t, h)
+		text, out, contentCount := callSearchText(t, h)
 		if contentCount != 1 {
 			t.Fatalf("expected one visible text block, got %d", contentCount)
 		}
-		for _, want := range []string{"Degoog web search for", "Visible text:", "structuredContent:"} {
+		for _, want := range []string{"Degoog web search for", "Visible text:", "structuredContent:", "call scrape automatically"} {
 			if !strings.Contains(text, want) {
 				t.Fatalf("breakdown text missing %q: %s", want, text)
 			}
+		}
+		if !strings.Contains(out.Summary, "call scrape automatically") {
+			t.Fatalf("structured summary should include follow-up guidance: %s", out.Summary)
 		}
 		if strings.Contains(text, "1. First cast result") || strings.Contains(text, "Results:") {
 			t.Fatalf("breakdown text should not contain result rows: %s", text)
@@ -136,9 +139,28 @@ func TestSearchTextModesAreComposable(t *testing.T) {
 
 	t.Run("none", func(t *testing.T) {
 		h := newSearchTestHandler(t, &config.Config{SearchText: config.SEARCH_TEXT_NONE})
-		text, _, contentCount := callSearchText(t, h)
+		text, out, contentCount := callSearchText(t, h)
 		if contentCount != 0 || text != "" {
 			t.Fatalf("none mode should emit no visible text, count=%d text=%q", contentCount, text)
+		}
+		if !strings.Contains(out.Summary, "call scrape automatically") {
+			t.Fatalf("none mode structured summary should still guide MCP clients that read structuredContent: %s", out.Summary)
+		}
+	})
+
+	t.Run("scrape disabled", func(t *testing.T) {
+		h := newSearchTestHandler(t, &config.Config{SearchText: config.SEARCH_TEXT_BREAKDOWN, DisableScrape: true})
+		text, out, contentCount := callSearchText(t, h)
+		if contentCount != 1 {
+			t.Fatalf("expected one visible text block, got %d", contentCount)
+		}
+		for _, got := range []string{text, out.Summary} {
+			if strings.Contains(got, "call scrape") {
+				t.Fatalf("scrape-disabled guidance should not tell agents to call scrape: %s", got)
+			}
+			if !strings.Contains(got, "No scrape tool is available") {
+				t.Fatalf("scrape-disabled guidance should explain scrape is unavailable: %s", got)
+			}
 		}
 	})
 }
