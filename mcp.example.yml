@@ -1,0 +1,64 @@
+# Degoog MCP sidecar configuration.
+
+server:
+  host: ""
+  port: 4443
+  authTokenEnv: DEGOOG_MCP_AUTH_TOKEN
+
+degoog:
+  url: "http://degoog:4444"
+  apiKeyEnv: DEGOOG_MCP_DEGOOG_API_KEY
+  timeoutMs: 15000
+
+output:
+  mode: compact # compact | balanced | full | structured-only
+
+search:
+  maxResults: 8
+  snippetChars: 220
+  textMode: compact
+
+scrape:
+  renderer: static
+  maxUrls: 4
+  concurrency: 4
+  timeoutMs: 15000
+  maxResponseBytes: 2097152
+  maxCharsPerUrl: 3000
+  maxChunksPerUrl: 4
+  chunkChars: 700
+  allowPrivateIps: false
+
+bundleSearch:
+  maxQueries: 8
+  queryExpansion: off # off | suggestions | related
+  maxExpandedQueries: 2
+  maxSearchResultsPerQuery: 8
+  maxScrapeUrls: 4
+  scrapeOverage: 3 # extra sources attempted in the first wave to absorb scrape failures
+  maxScrapeAttempts: 10 # hard ceiling on scrape attempts per bundle call
+  maxEvidenceChars: 8000
+  includeRawResults: false
+
+deepSearch:
+  enabled: false
+  provider: ollama # see DEEP_SEARCH.md
+  model: ""
+  baseUrl: ""
+  apiKey: "${LLM_API_KEY:-}"
+  maxTokens: 2000
+  enableThinking: false
+  onProviderUnavailable: bundle_search # bundle_search | off
+  maxIterations: 2
+  maxQueriesPerIteration: 4
+  maxScrapeUrls: 8
+  scrapeOverage: 4 # extra sources attempted per wave to absorb scrape failures
+  maxScrapeAttempts: 16 # hard ceiling on scrape attempts per deep search run
+  maxEvidenceChars: 20000
+  requireCitations: true
+
+cache:
+  enabled: true
+  ttlMs: 1800000
+  maxEntries: 512
+  maxBytes: 67108864

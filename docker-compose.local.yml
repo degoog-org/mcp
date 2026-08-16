@@ -1,0 +1,18 @@
+services:
+  degoog-mcp:
+    build: .
+    image: degoog-mcp-bun:local
+    ports:
+      - "4443:4443"
+    volumes:
+      - ./data:/data
+    env_file:
+      - path: .env
+        required: false
+    networks:
+      - degoog-net
+
+networks:
+  degoog-net:
+    external: true
+    name: degoog_degoog-net

@@ -1,0 +1,22 @@
+services:
+  degoog-mcp:
+    image: ghcr.io/degoog-org/mcp:latest
+    container_name: degoog-mcp
+    restart: unless-stopped
+    ports:
+      - "4443:4443"
+    volumes:
+      - ./data:/data
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DEGOOG_MCP_CONFIG: "/data/mcp.yml"
+      DEGOOG_MCP_BIND_HOST: ""
+      DEGOOG_MCP_PORT: "4443"
+      DEGOOG_MCP_LOG_LEVEL: "info"
+      DEGOOG_MCP_DEGOOG_URL: ""
+      DEGOOG_MCP_DEGOOG_API_KEY: ${DEGOOG_MCP_DEGOOG_API_KEY:-}
+      DEGOOG_MCP_AUTH_TOKEN: ${DEGOOG_MCP_AUTH_TOKEN:-}
+      DEGOOG_MCP_USER_AGENT: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
+      LLM_API_KEY: ${LLM_API_KEY:-}
