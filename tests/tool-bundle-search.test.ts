@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, test } from "bun:test";
 import { pickCandidates } from "../src/bundle/candidate-picker.ts";
-import { QueryExpansion } from "../src/config/schema.ts";
+import { QueryExpansion, TextMode } from "../src/config/schema.ts";
 import { normalize } from "../src/search/normalize.ts";
 import { shapeResults } from "../src/search/shape.ts";
 import { DEFAULT_CONFIG } from "../src/config/defaults.ts";
@@ -13,11 +13,12 @@ interface Pack {
   queriesOmitted: number;
   expansion: { used: boolean; source: string; added: string[] };
   counts: Record<string, number>;
-  sources: Array<{ id: string; url: string; reason: string }>;
+  sources: Array<{ id: string; title: string; url: string; reason: string }>;
   evidence: Array<{ id: string; text: string }>;
   failedSources: Array<{ url: string; reason: string }>;
   nextActions: string[];
   selectionPolicy: string;
+  textMode: string;
   selection: {
     target: number;
     attempted: number;
@@ -61,12 +62,15 @@ const searchResults = () => [
   }),
 ];
 
+const SLOW_QUERY = "slowpoke";
+
 const server = serveFake(async (request, url) => {
   if (url.pathname === "/api/search") {
     const query =
       url.searchParams.get("q") ??
       ((await request.clone().json()) as { query?: string }).query ??
       "";
+    if (query.includes(SLOW_QUERY)) await Bun.sleep(300);
     return Response.json(fakeSearch(searchResults(), query));
   }
   if (url.pathname === "/api/suggest") {
@@ -196,6 +200,113 @@ describe("bundle search evidence pack", () => {
     expect(pack.failedSources[0]?.reason.length).toBeGreaterThan(0);
     expect(pack.counts.failures).toBe(pack.failedSources.length);
     expect(pack.nextActions.join(" ")).toContain("failed");
+  });
+});
+
+describe("bundle search text mode", () => {
+  const fullCtx = () =>
+    makeCtx(server.url, { bundleSearch: { textMode: TextMode.Full } });
+
+  test("the default keeps the compact summary and nothing else", async () => {
+    const result = await runBundleTool(makeCtx(server.url), {
+      query: "install the thing",
+    });
+    const text = visibleText(result);
+
+    expect(packOf(result).textMode).toBe(TextMode.Compact);
+    expect(text).toContain("Bundle ready:");
+    expect(text).not.toContain("Sources:");
+    expect(text).not.toContain("Evidence:");
+    expect(text.split("\n").filter(Boolean).length).toBeLessThan(5);
+  });
+
+  test("full mode prints source rows and evidence in visible text", async () => {
+    const result = await runBundleTool(fullCtx(), { query: "install the thing" });
+    const pack = packOf(result);
+    const text = visibleText(result);
+    const first = pack.sources[0];
+
+    expect(pack.textMode).toBe(TextMode.Full);
+    expect(text).toContain("Bundle ready:");
+    expect(text).toContain("Sources:");
+    expect(text).toContain(`[S1] ${first?.title} - ${first?.url}`);
+    expect(text).toContain("Evidence:");
+    expect(text).toContain(pack.evidence[0]?.text as string);
+  });
+
+  test("full mode reuses the structured source ids", async () => {
+    const result = await runBundleTool(fullCtx(), { query: "install the thing" });
+    const pack = packOf(result);
+    const text = visibleText(result);
+
+    for (const source of pack.sources) {
+      expect(text).toContain(`[${source.id}] `);
+    }
+    for (const chunk of pack.evidence) {
+      expect(text).toContain(`[${chunk.id}] `);
+    }
+  });
+
+  test("full mode leaves the structured pack alone", async () => {
+    const compact = packOf(
+      await runBundleTool(makeCtx(server.url), { query: "install the thing" }),
+    );
+    const full = packOf(
+      await runBundleTool(fullCtx(), { query: "install the thing" }),
+    );
+
+    expect(full.sources).toEqual(compact.sources);
+    expect(full.evidence).toEqual(compact.evidence);
+    expect(full.counts).toEqual(compact.counts);
+  });
+
+  test("full mode still refuses to synthesise an answer", async () => {
+    const result = await runBundleTool(fullCtx(), { query: "install the thing" });
+    const pack = packOf(result);
+    const text = visibleText(result);
+
+    expect(pack).not.toHaveProperty("answer");
+    expect(pack).not.toHaveProperty("report");
+    expect(pack).not.toHaveProperty("summary");
+    expect(text).toContain("not an answer");
+    expect(text).not.toContain("Answer:");
+    expect(text).not.toContain("Report:");
+    expect(text).not.toContain("Summary:");
+  });
+
+  test("full mode stays inside the evidence budget", async () => {
+    const result = await runBundleTool(fullCtx(), {
+      query: "install the thing",
+      maxEvidenceChars: 900,
+    });
+    const pack = packOf(result);
+    const evidence = visibleText(result).split("Evidence:")[1] ?? "";
+
+    expect(pack.counts.evidenceChars).toBeLessThanOrEqual(900);
+    expect(evidence.length).toBeLessThan(2000);
+  });
+});
+
+describe("bundle search timeout", () => {
+  test("a run past the budget returns a timeout error naming the tool", async () => {
+    const ctx = makeCtx(server.url, { bundleSearch: { timeout: 50 } });
+
+    const result = await runBundleTool(ctx, { query: `${SLOW_QUERY} install` });
+    const error = structured(result).error as Record<string, string>;
+
+    expect(result.isError).toBe(true);
+    expect(error.kind).toBe("timeout");
+    expect(error.message).toContain("bundle_search timed out after 50ms");
+    expect(error.hint).toContain("bundleSearch.timeout");
+  });
+
+  test("the generous default lets a normal run finish", async () => {
+    const result = await runBundleTool(makeCtx(server.url), {
+      query: "install the thing",
+    });
+
+    expect(result.isError).toBeUndefined();
+    expect(DEFAULT_CONFIG.bundleSearch.timeout).toBe(90000);
   });
 });
 

@@ -1,14 +1,16 @@
 # Degoog MCP sidecar configuration.
+# Timeout and ttl values are milliseconds.
 
 server:
   host: ""
   port: 4443
   authTokenEnv: DEGOOG_MCP_AUTH_TOKEN
+  idleTimeout: 255000 # bun caps the socket idle timeout at 255000
 
 degoog:
   url: "http://degoog:4444"
   apiKeyEnv: DEGOOG_MCP_DEGOOG_API_KEY
-  timeoutMs: 15000
+  timeout: 15000
 
 output:
   mode: compact # compact | balanced | full | structured-only
@@ -22,7 +24,7 @@ scrape:
   renderer: static
   maxUrls: 4
   concurrency: 4
-  timeoutMs: 15000
+  timeout: 15000
   maxResponseBytes: 2097152
   maxCharsPerUrl: 3000
   maxChunksPerUrl: 4
@@ -39,6 +41,8 @@ bundleSearch:
   maxScrapeAttempts: 10 # hard ceiling on scrape attempts per bundle call
   maxEvidenceChars: 8000
   includeRawResults: false
+  textMode: compact # compact | full, full prints the sources and evidence as visible text for clients that ignore structuredContent
+  timeout: 90000
 
 deepSearch:
   enabled: false
@@ -56,9 +60,12 @@ deepSearch:
   maxScrapeAttempts: 16 # hard ceiling on scrape attempts per deep search run
   maxEvidenceChars: 20000
   requireCitations: true
+  timeout: 240000
+  providerTimeout: 90000
+  reportTimeout: 120000
 
 cache:
   enabled: true
-  ttlMs: 1800000
+  ttl: 1800000
   maxEntries: 512
   maxBytes: 67108864

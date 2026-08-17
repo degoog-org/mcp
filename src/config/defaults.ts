@@ -17,11 +17,12 @@ export const DEFAULT_CONFIG: McpConfig = {
     host: "",
     port: DEFAULT_PORT,
     authTokenEnv: "DEGOOG_MCP_AUTH_TOKEN",
+    idleTimeout: 255000,
   },
   degoog: {
     url: DEFAULT_DEGOOG_URL,
     apiKeyEnv: "DEGOOG_MCP_DEGOOG_API_KEY",
-    timeoutMs: 15000,
+    timeout: 15000,
   },
   output: {
     mode: OutputMode.Compact,
@@ -35,7 +36,7 @@ export const DEFAULT_CONFIG: McpConfig = {
     renderer: ScrapeRenderer.Static,
     maxUrls: 4,
     concurrency: 4,
-    timeoutMs: 15000,
+    timeout: 15000,
     maxResponseBytes: 2097152,
     maxCharsPerUrl: 3000,
     maxChunksPerUrl: 4,
@@ -52,6 +53,8 @@ export const DEFAULT_CONFIG: McpConfig = {
     maxScrapeAttempts: 10,
     maxEvidenceChars: 8000,
     includeRawResults: false,
+    textMode: TextMode.Compact,
+    timeout: 90000,
   },
   deepSearch: {
     enabled: false,
@@ -69,10 +72,13 @@ export const DEFAULT_CONFIG: McpConfig = {
     maxScrapeAttempts: 16,
     maxEvidenceChars: 20000,
     requireCitations: true,
+    timeout: 240000,
+    providerTimeout: 90000,
+    reportTimeout: 120000,
   },
   cache: {
     enabled: true,
-    ttlMs: 1800000,
+    ttl: 1800000,
     maxEntries: 512,
     maxBytes: 67108864,
   },
@@ -82,16 +88,18 @@ export const DEFAULT_CONFIG_YAML = `# Degoog MCP sidecar configuration.
 # String values accept \${VAR} and \${VAR:-default}. $$ is a literal $.
 # Sidecar secrets are read from the environment variables named below, never stored here.
 # deepSearch.apiKey may be a literal key or \${YOUR_PROVIDER_KEY}. See DEEP_SEARCH.md.
+# Every timeout and ttl in this file is in milliseconds.
 
 server:
   host: ""
   port: 4443
   authTokenEnv: DEGOOG_MCP_AUTH_TOKEN
+  idleTimeout: 255000 # bun caps the socket idle timeout at 255000
 
 degoog:
   url: "${DEFAULT_DEGOOG_URL}"
   apiKeyEnv: DEGOOG_MCP_DEGOOG_API_KEY
-  timeoutMs: 15000
+  timeout: 15000
 
 output:
   mode: compact # compact | balanced | full | structured-only
@@ -105,7 +113,7 @@ scrape:
   renderer: static
   maxUrls: 4
   concurrency: 4
-  timeoutMs: 15000
+  timeout: 15000
   maxResponseBytes: 2097152
   maxCharsPerUrl: 3000
   maxChunksPerUrl: 4
@@ -122,6 +130,8 @@ bundleSearch:
   maxScrapeAttempts: 10
   maxEvidenceChars: 8000
   includeRawResults: false
+  textMode: compact # compact | full
+  timeout: 90000
 
 deepSearch:
   enabled: false
@@ -139,10 +149,13 @@ deepSearch:
   maxScrapeAttempts: 16
   maxEvidenceChars: 20000
   requireCitations: true
+  timeout: 240000
+  providerTimeout: 90000
+  reportTimeout: 120000
 
 cache:
   enabled: true
-  ttlMs: 1800000
+  ttl: 1800000
   maxEntries: 512
   maxBytes: 67108864
 `;

@@ -62,7 +62,7 @@ const scrapeOne = async (
   const maxChunks = options.maxChunksPerUrl ?? config.maxChunksPerUrl;
 
   const outcome = await fetchPage(url, {
-    timeoutMs: config.timeoutMs,
+    timeoutMs: config.timeout,
     maxResponseBytes: config.maxResponseBytes,
     allowPrivateIps: config.allowPrivateIps,
     signal: options.signal,

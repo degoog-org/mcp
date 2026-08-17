@@ -2,6 +2,7 @@ import type { DeepSearchConfig } from "../config/schema.ts";
 import { complete } from "../llm/complete.ts";
 import { ChatRole, type ChatMessage } from "../llm/types.ts";
 import { logger } from "../utils/logger.ts";
+import { withTimeLimit } from "../utils/timeout.ts";
 
 const LOG_NS = "deep-model";
 
@@ -9,6 +10,7 @@ export interface AskInput {
   system: string;
   prompt: string;
   maxTokens: number;
+  timeout?: number;
 }
 
 export interface ResearchModel {
@@ -25,20 +27,26 @@ export const createResearchModel = (
       { role: ChatRole.User, content: input.prompt },
     ];
 
-    const result = await complete({
-      provider: settings.provider,
-      config: {
-        model: settings.model,
-        baseUrl: settings.baseUrl,
-        apiKey: settings.apiKey,
-      },
-      messages,
-      options: {
-        maxTokens: Math.min(input.maxTokens, settings.maxTokens),
-        enableThinking: settings.enableThinking,
-        signal,
-      },
-    });
+    const result = await withTimeLimit(
+      input.timeout ?? settings.providerTimeout,
+      `${settings.provider} call`,
+      (deadline) =>
+        complete({
+          provider: settings.provider,
+          config: {
+            model: settings.model,
+            baseUrl: settings.baseUrl,
+            apiKey: settings.apiKey,
+          },
+          messages,
+          options: {
+            maxTokens: Math.min(input.maxTokens, settings.maxTokens),
+            enableThinking: settings.enableThinking,
+            signal: deadline,
+          },
+        }),
+      signal,
+    );
 
     if (result.error) throw new Error(result.error);
     return result.text;

@@ -32,12 +32,13 @@ export interface ServerConfig {
   host: string;
   port: number;
   authTokenEnv: string;
+  idleTimeout: number;
 }
 
 export interface DegoogConfig {
   url: string;
   apiKeyEnv: string;
-  timeoutMs: number;
+  timeout: number;
 }
 
 export interface OutputConfig {
@@ -54,7 +55,7 @@ export interface ScrapeConfig {
   renderer: ScrapeRenderer;
   maxUrls: number;
   concurrency: number;
-  timeoutMs: number;
+  timeout: number;
   maxResponseBytes: number;
   maxCharsPerUrl: number;
   maxChunksPerUrl: number;
@@ -72,6 +73,8 @@ export interface BundleSearchConfig {
   maxScrapeAttempts: number;
   maxEvidenceChars: number;
   includeRawResults: boolean;
+  textMode: TextMode;
+  timeout: number;
 }
 
 export interface DeepSearchConfig {
@@ -90,11 +93,14 @@ export interface DeepSearchConfig {
   maxScrapeAttempts: number;
   maxEvidenceChars: number;
   requireCitations: boolean;
+  timeout: number;
+  providerTimeout: number;
+  reportTimeout: number;
 }
 
 export interface CacheConfig {
   enabled: boolean;
-  ttlMs: number;
+  ttl: number;
   maxEntries: number;
   maxBytes: number;
 }

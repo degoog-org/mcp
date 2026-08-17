@@ -79,7 +79,7 @@ export const createCache = (
     store.set(key, {
       value,
       bytes: size,
-      expiresAt: clock() + (ttlMs ?? config.ttlMs),
+      expiresAt: clock() + (ttlMs ?? config.ttl),
     });
     bytes += size;
     evict();

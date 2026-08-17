@@ -8,10 +8,10 @@ import {
   ToolErrorKind,
 } from "../output/errors.ts";
 import { toolResult, type ToolResult } from "../output/structured.ts";
-import { bundleText } from "../output/visible.ts";
-import { runBundle } from "../tools/bundle-search.ts";
+import { bundleVisible, runBundle } from "../tools/bundle-search.ts";
 import { ToolName, type ToolContext } from "../tools/context.ts";
 import { logger } from "../utils/logger.ts";
+import { TimeoutError, withTimeLimit } from "../utils/timeout.ts";
 import { runLoop } from "./loop.ts";
 import { createResearchModel } from "./model.ts";
 import { writeReport } from "./report.ts";
@@ -25,6 +25,9 @@ const DISABLED_FIX = "See DEEP_SEARCH.md for the provider setup.";
 
 const OFF_NOTE =
   "deepSearch.onProviderUnavailable is off on this instance, so nothing ran in place of deep_search.";
+
+const TIMEOUT_FIX =
+  "Raise deepSearch.timeout, providerTimeout or reportTimeout in mcp.yml, or lower maxIterations and maxScrapeUrls. All of them are milliseconds.";
 
 const DEGRADED_NOTE =
   "This is a bundle_search evidence pack. No queries were planned, no coverage was evaluated, no report was written. Treat it as raw sources, not as research.";
@@ -82,8 +85,6 @@ const degradeToBundle = async (
       { query: input.query, type: input.type, lang: input.lang },
       input.signal,
     );
-    const { pack } = outcome;
-
     logger.info(LOG_NS, `degraded to bundle_search: ${reason}`);
 
     const text = [
@@ -91,13 +92,7 @@ const degradeToBundle = async (
       fix,
       DEGRADED_NOTE,
       "",
-      bundleText({
-        sources: pack.sources.length,
-        chunks: pack.chunks.length,
-        failures: pack.failures.length,
-        continued: outcome.gathered.continued,
-        exhausted: outcome.gathered.exhausted,
-      }),
+      bundleVisible(ctx.config.bundleSearch.textMode, outcome),
     ].join("\n");
 
     return toolResult(text, {
@@ -158,24 +153,35 @@ export const runDeepSearch = async (
     );
   }
 
-  const model = createResearchModel(settings, input.signal);
-
   try {
-    const loop = await runLoop({
-      ctx,
-      model,
-      question: input.query,
-      type: input.type,
-      lang: input.lang,
-      signal: input.signal,
-    });
+    const { loop, report } = await withTimeLimit(
+      settings.timeout,
+      ToolName.DeepSearch,
+      async (deadline) => {
+        const model = createResearchModel(settings, deadline);
 
-    const report = await writeReport(
-      model,
-      input.query,
-      loop.pack,
-      settings.maxEvidenceChars,
-      settings.requireCitations,
+        const run = await runLoop({
+          ctx,
+          model,
+          question: input.query,
+          type: input.type,
+          lang: input.lang,
+          signal: deadline,
+        });
+
+        return {
+          loop: run,
+          report: await writeReport({
+            model,
+            question: input.query,
+            pack: run.pack,
+            maxChars: settings.maxEvidenceChars,
+            requireCitations: settings.requireCitations,
+            timeout: settings.reportTimeout,
+          }),
+        };
+      },
+      input.signal,
     );
 
     logger.info(
@@ -207,6 +213,11 @@ export const runDeepSearch = async (
     });
   } catch (err) {
     logger.warn(LOG_NS, "deep search failed", err);
+
+    if (err instanceof TimeoutError) {
+      return errorResult(ToolErrorKind.Timeout, messageOf(err), TIMEOUT_FIX);
+    }
+
     const fix = `Check the ${settings.provider} provider is reachable and the model id is correct.`;
 
     if (!fallsBackToBundle(ctx)) return fromError(err, `${fix} ${OFF_NOTE}`);

@@ -75,7 +75,7 @@ export const createClient = (config: DegoogConfig): DegoogClient => {
 
     const started = performance.now();
     const response = await withDeadline(
-      options.timeoutMs ?? config.timeoutMs,
+      options.timeoutMs ?? config.timeout,
       (signal) =>
         fetch(url, {
           method,

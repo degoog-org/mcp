@@ -45,7 +45,7 @@ describe("cache keys", () => {
 describe("ttl", () => {
   test("entries expire once the ttl has passed", () => {
     const clock = fakeClock();
-    const cache = createCache(cacheConfig({ ttlMs: 1000 }), clock.read);
+    const cache = createCache(cacheConfig({ ttl: 1000 }), clock.read);
 
     cache.set("k", { hello: "world" });
     expect(cache.get<Record<string, string>>("k")).toEqual({ hello: "world" });
@@ -57,7 +57,7 @@ describe("ttl", () => {
 
   test("a per-entry ttl beats the configured one", () => {
     const clock = fakeClock();
-    const cache = createCache(cacheConfig({ ttlMs: 60_000 }), clock.read);
+    const cache = createCache(cacheConfig({ ttl: 60_000 }), clock.read);
 
     cache.set("short", "value", 100);
     clock.advance(200);
@@ -67,7 +67,7 @@ describe("ttl", () => {
 
   test("expired entries are swept when something else is written", () => {
     const clock = fakeClock();
-    const cache = createCache(cacheConfig({ ttlMs: 500 }), clock.read);
+    const cache = createCache(cacheConfig({ ttl: 500 }), clock.read);
 
     cache.set("old", "value");
     clock.advance(600);

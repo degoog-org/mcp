@@ -4,22 +4,31 @@ import { pickCandidates } from "../bundle/candidate-picker.ts";
 import { buildPack, nextActions, type EvidencePack } from "../bundle/evidence-pack.ts";
 import { gatherInDegoogOrder, type GatherOutcome } from "../bundle/gather.ts";
 import { expandQueries } from "../bundle/query-expansion.ts";
-import { QueryExpansion } from "../config/schema.ts";
+import { QueryExpansion, TextMode } from "../config/schema.ts";
 import { searchCached } from "../degoog/cached.ts";
 import type { DegoogSearchResponse } from "../degoog/types.ts";
 import { wantsDetail } from "../output/compact.ts";
-import { errorResult, fromError, ToolErrorKind } from "../output/errors.ts";
+import {
+  errorResult,
+  fromError,
+  messageOf,
+  ToolErrorKind,
+} from "../output/errors.ts";
 import { toolResult, type ToolResult } from "../output/structured.ts";
-import { bundleText } from "../output/visible.ts";
+import { bundleFullText, bundleText } from "../output/visible.ts";
 import { runPipeline } from "../search/pipeline.ts";
 import { noteScrapeRows } from "../scrape/failures.ts";
 import { scrapeUrls } from "../scrape/pipeline.ts";
 import { logger } from "../utils/logger.ts";
 import { shortQuery } from "../utils/redact.ts";
-import type { ToolContext } from "./context.ts";
+import { TimeoutError, withTimeLimit } from "../utils/timeout.ts";
+import { ToolName, type ToolContext } from "./context.ts";
 import { toSourceRow, unknownTypeNote } from "./search.ts";
 
 const LOG_NS = "tool-bundle";
+
+const TIMEOUT_FIX =
+  "Raise bundleSearch.timeout in mcp.yml, or lower maxScrapeUrls, maxQueries and scrape.timeout. All of them are milliseconds.";
 
 export const bundleShape = {
   query: z.string().optional().describe("Single research query."),
@@ -75,10 +84,10 @@ const askedQueries = (args: BundleArgs): string[] => {
 const queryLimit = (args: BundleArgs, maxQueries: number): number =>
   Math.min(args.queries?.length ?? 1, Math.max(1, maxQueries));
 
-export const runBundle = async (
+const gatherBundle = async (
   ctx: ToolContext,
   args: BundleArgs,
-  signal?: AbortSignal,
+  signal: AbortSignal,
 ): Promise<BundleOutcome> => {
   const { config } = ctx;
   const settings = config.bundleSearch;
@@ -192,6 +201,7 @@ export const runBundle = async (
       evidenceChars: pack.charsUsed,
     },
     selectionPolicy: "degoog_order_readable_sources",
+    textMode: settings.textMode,
     selection: {
       target,
       attempted: gathered.attempted,
@@ -225,6 +235,38 @@ export const runBundle = async (
   };
 };
 
+export const runBundle = async (
+  ctx: ToolContext,
+  args: BundleArgs,
+  signal?: AbortSignal,
+): Promise<BundleOutcome> =>
+  withTimeLimit(
+    ctx.config.bundleSearch.timeout,
+    ToolName.BundleSearch,
+    (deadline) => gatherBundle(ctx, args, deadline),
+    signal,
+  );
+
+export const bundleVisible = (mode: TextMode, outcome: BundleOutcome): string => {
+  const { pack } = outcome;
+  const summary = {
+    sources: pack.sources.length,
+    chunks: pack.chunks.length,
+    failures: pack.failures.length,
+    continued: outcome.gathered.continued,
+    exhausted: outcome.gathered.exhausted,
+  };
+
+  return mode === TextMode.Full
+    ? bundleFullText({
+        summary,
+        sources: pack.sources,
+        chunks: pack.chunks,
+        failures: pack.failures,
+      })
+    : bundleText(summary);
+};
+
 export const runBundleTool = async (
   ctx: ToolContext,
   args: BundleArgs,
@@ -249,17 +291,16 @@ export const runBundleTool = async (
     );
 
     return toolResult(
-      bundleText({
-        sources: pack.sources.length,
-        chunks: pack.chunks.length,
-        failures: pack.failures.length,
-        continued: outcome.gathered.continued,
-        exhausted: outcome.gathered.exhausted,
-      }),
+      bundleVisible(ctx.config.bundleSearch.textMode, outcome),
       outcome.structured,
     );
   } catch (err) {
     logger.warn(LOG_NS, "bundle run failed", err);
+
+    if (err instanceof TimeoutError) {
+      return errorResult(ToolErrorKind.Timeout, messageOf(err), TIMEOUT_FIX);
+    }
+
     return fromError(err, "Check Degoog reachability with the health tool.");
   }
 };

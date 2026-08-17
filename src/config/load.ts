@@ -95,11 +95,12 @@ const mergeConfig = (raw: Raw): McpConfig => {
       host: asText(server.host, d.server.host),
       port: positive(server.port, d.server.port),
       authTokenEnv: asText(server.authTokenEnv, d.server.authTokenEnv),
+      idleTimeout: positive(server.idleTimeout, d.server.idleTimeout),
     },
     degoog: {
       url: asText(degoog.url, d.degoog.url).replace(/\/+$/, ""),
       apiKeyEnv: asText(degoog.apiKeyEnv, d.degoog.apiKeyEnv),
-      timeoutMs: positive(degoog.timeoutMs, d.degoog.timeoutMs),
+      timeout: positive(degoog.timeout, d.degoog.timeout),
     },
     output: {
       mode: asOneOf(output.mode, Object.values(OutputMode), d.output.mode),
@@ -121,7 +122,7 @@ const mergeConfig = (raw: Raw): McpConfig => {
       ),
       maxUrls: positive(scrape.maxUrls, d.scrape.maxUrls),
       concurrency: positive(scrape.concurrency, d.scrape.concurrency),
-      timeoutMs: positive(scrape.timeoutMs, d.scrape.timeoutMs),
+      timeout: positive(scrape.timeout, d.scrape.timeout),
       maxResponseBytes: positive(
         scrape.maxResponseBytes,
         d.scrape.maxResponseBytes,
@@ -172,6 +173,12 @@ const mergeConfig = (raw: Raw): McpConfig => {
         bundle.includeRawResults,
         d.bundleSearch.includeRawResults,
       ),
+      textMode: asOneOf(
+        bundle.textMode,
+        Object.values(TextMode),
+        d.bundleSearch.textMode,
+      ),
+      timeout: positive(bundle.timeout, d.bundleSearch.timeout),
     },
     deepSearch: {
       enabled: asBool(deep.enabled, d.deepSearch.enabled),
@@ -221,10 +228,16 @@ const mergeConfig = (raw: Raw): McpConfig => {
         deep.requireCitations,
         d.deepSearch.requireCitations,
       ),
+      timeout: positive(deep.timeout, d.deepSearch.timeout),
+      providerTimeout: positive(
+        deep.providerTimeout,
+        d.deepSearch.providerTimeout,
+      ),
+      reportTimeout: positive(deep.reportTimeout, d.deepSearch.reportTimeout),
     },
     cache: {
       enabled: asBool(cache.enabled, d.cache.enabled),
-      ttlMs: positive(cache.ttlMs, d.cache.ttlMs),
+      ttl: positive(cache.ttl, d.cache.ttl),
       maxEntries: positive(cache.maxEntries, d.cache.maxEntries),
       maxBytes: positive(cache.maxBytes, d.cache.maxBytes),
     },

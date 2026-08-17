@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { OutputMode } from "../config/schema.ts";
+import { OutputMode, TextMode } from "../config/schema.ts";
 import { searchCached } from "../degoog/cached.ts";
 import { SearchTypeKind, type ResolvedType } from "../degoog/search-types.ts";
 import { SearchTimeFilter } from "../degoog/types.ts";
@@ -7,7 +7,11 @@ import { citeId } from "../output/citations.ts";
 import { wantsDetail } from "../output/compact.ts";
 import { fromError, ToolErrorKind, errorResult } from "../output/errors.ts";
 import { toolResult, type ToolResult } from "../output/structured.ts";
-import { searchText } from "../output/visible.ts";
+import {
+  searchFullText,
+  searchText,
+  type SearchPack,
+} from "../output/visible.ts";
 import { recentScrapeFailure } from "../scrape/failures.ts";
 import { pickScrapable, runPipeline } from "../search/pipeline.ts";
 import type { ShapedResult } from "../search/shape.ts";
@@ -73,6 +77,9 @@ export const toSourceRow = (result: ShapedResult, index: number): SourceRow => (
   degoogScore: result.degoogScore,
   reasons: result.reasons,
 });
+
+export const searchVisible = (mode: TextMode, pack: SearchPack): string =>
+  mode === TextMode.Full ? searchFullText(pack) : searchText(pack.summary);
 
 export const runSearchTool = async (
   ctx: ToolContext,
@@ -149,6 +156,7 @@ export const runSearchTool = async (
       results: sources,
       scrapeRecommendations: recommended,
       relatedSearches: pipeline.related.slice(0, 6),
+      textMode: config.search.textMode,
     };
 
     const typeWarning = unknownTypeNote(searchType);
@@ -166,12 +174,15 @@ export const runSearchTool = async (
     }
 
     return toolResult(
-      searchText({
-        results: sources.length,
-        domains: pipeline.domains,
-        engines: pipeline.engines,
-        recommended: recommended.length,
-        note: typeWarning,
+      searchVisible(config.search.textMode, {
+        summary: {
+          results: sources.length,
+          domains: pipeline.domains,
+          engines: pipeline.engines,
+          recommended: recommended.length,
+          note: typeWarning,
+        },
+        results: sources,
       }),
       structured,
     );

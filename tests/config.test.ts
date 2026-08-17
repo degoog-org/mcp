@@ -6,7 +6,7 @@ import { parse } from "yaml";
 import { DEFAULT_CONFIG } from "../src/config/defaults.ts";
 import { EnvVar } from "../src/config/env.ts";
 import { configPath, loadConfig } from "../src/config/load.ts";
-import { OutputMode, QueryExpansion } from "../src/config/schema.ts";
+import { OutputMode, QueryExpansion, TextMode } from "../src/config/schema.ts";
 import { ProviderId } from "../src/llm/types.ts";
 
 let dir = "";
@@ -116,6 +116,29 @@ describe("merging", () => {
     const { config } = await loadConfig({ path });
     expect(config.degoog.url).toBe("http://degoog:4444");
     expect(config.output.mode).toBe(OutputMode.Compact);
+  });
+
+  test("bundle text mode defaults to compact", async () => {
+    const path = join(dir, "mcp.yml");
+    await writeFile(path, 'degoog:\n  url: "http://degoog.local:4444"\n');
+
+    const { config } = await loadConfig({ path });
+    expect(config.bundleSearch.textMode).toBe(TextMode.Compact);
+    expect(DEFAULT_CONFIG.bundleSearch.textMode).toBe(TextMode.Compact);
+  });
+
+  test("bundle text mode accepts full and refuses nonsense", async () => {
+    const full = join(dir, "full.yml");
+    const junk = join(dir, "junk.yml");
+    await writeFile(full, "bundleSearch:\n  textMode: full\n");
+    await writeFile(junk, "bundleSearch:\n  textMode: interpretive-dance\n");
+
+    expect((await loadConfig({ path: full })).config.bundleSearch.textMode).toBe(
+      TextMode.Full,
+    );
+    expect((await loadConfig({ path: junk })).config.bundleSearch.textMode).toBe(
+      TextMode.Compact,
+    );
   });
 
   test("coerces yaml false for query expansion", async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { OutputMode } from "../src/config/schema.ts";
+import { OutputMode, TextMode } from "../src/config/schema.ts";
 import { runSearchTool } from "../src/tools/search.ts";
 import { fakeResult, fakeSearch, makeCtx, serveFake, structured, visibleText } from "./helpers.ts";
 
@@ -168,6 +168,57 @@ describe("search tool", () => {
     await runSearchTool(ctx, { query: "bun http server" });
 
     expect(server.hits).toHaveLength(1);
+
+    await server.stop();
+  });
+
+  test("the default text mode keeps the three line summary", async () => {
+    const server = serveFake(() => Response.json(fakeSearch(results)));
+    const ctx = makeCtx(server.url);
+
+    const result = await runSearchTool(ctx, { query: "bun http server" });
+    const text = visibleText(result);
+
+    expect(structured(result).textMode).toBe(TextMode.Compact);
+    expect(text).not.toContain("Results:");
+    expect(text).not.toContain("https://bun.sh");
+
+    await server.stop();
+  });
+
+  test("full text mode prints the result rows for clients that ignore structured content", async () => {
+    const server = serveFake(() => Response.json(fakeSearch(results)));
+    const ctx = makeCtx(server.url, { search: { textMode: TextMode.Full } });
+
+    const result = await runSearchTool(ctx, { query: "bun http server" });
+    const rows = structured(result).results as Array<Record<string, string>>;
+    const text = visibleText(result);
+
+    expect(structured(result).textMode).toBe(TextMode.Full);
+    expect(text).toContain("Search ready:");
+    expect(text).toContain("Results:");
+
+    for (const row of rows) {
+      expect(text).toContain(`[${row.id}] ${row.title} - ${row.url}`);
+      expect(text).toContain(row.snippet as string);
+    }
+
+    await server.stop();
+  });
+
+  test("full text mode leaves the structured results alone", async () => {
+    const server = serveFake(() => Response.json(fakeSearch(results)));
+    const compact = structured(
+      await runSearchTool(makeCtx(server.url), { query: "bun http server" }),
+    );
+    const full = structured(
+      await runSearchTool(makeCtx(server.url, { search: { textMode: TextMode.Full } }), {
+        query: "bun http server",
+      }),
+    );
+
+    expect(full.results).toEqual(compact.results);
+    expect(full.counts).toEqual(compact.counts);
 
     await server.stop();
   });

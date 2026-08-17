@@ -3,7 +3,7 @@ import { EVAL_SYSTEM } from "../src/deep-search/evaluate.ts";
 import { DISABLED_MESSAGE, runDeepSearch } from "../src/deep-search/orchestrator.ts";
 import { PLAN_SYSTEM } from "../src/deep-search/plan.ts";
 import { MISSING_CITATIONS, REPORT_SYSTEM } from "../src/deep-search/report.ts";
-import { ProviderFallback } from "../src/config/schema.ts";
+import { ProviderFallback, TextMode } from "../src/config/schema.ts";
 import { ProviderId } from "../src/llm/types.ts";
 import { runDeepTool } from "../src/tools/deep-search.ts";
 import { fakeResult, fakeSearch, longText, makeCtx, pageHtml, serveFake, structured, visibleText } from "./helpers.ts";
@@ -64,7 +64,7 @@ const deadLinkResults = () => [
   fakeResult({ url: alias("localhost", "/gone"), title: "Dead one" }),
   fakeResult({ url: alias("127.0.0.1", "/gone"), title: "Dead two" }),
   fakeResult({ url: alias("0.0.0.0", "/docs"), title: "Live one" }),
-  fakeResult({ url: alias("[::1]", "/guide"), title: "Live two" }),
+  fakeResult({ url: alias("127.0.0.2", "/guide"), title: "Live two" }),
 ];
 
 const server = serveFake(async (request, url) => {
@@ -171,6 +171,22 @@ describe("onProviderUnavailable", () => {
     expect(visibleText(result)).toContain("no report was written");
     expect(data.report).toBeUndefined();
     expect(askedSystems).toHaveLength(0);
+  });
+
+  test("the degraded pack respects bundleSearch.textMode", async () => {
+    reset();
+
+    const ctx = makeCtx(server.url, {
+      bundleSearch: { textMode: TextMode.Full },
+    });
+    const result = await runDeepSearch(ctx, { query: "how do i install" });
+    const sources = structured(result).sources as Array<Record<string, string>>;
+    const text = visibleText(result);
+
+    expect(text).toContain("DEGRADED RESULT");
+    expect(text).toContain("Sources:");
+    expect(text).toContain("Evidence:");
+    expect(text).toContain(`[${sources[0]?.id}] ${sources[0]?.title}`);
   });
 
   test("off errors and never points at bundle_search", async () => {

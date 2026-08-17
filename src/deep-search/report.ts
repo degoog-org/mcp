@@ -24,23 +24,31 @@ export const reportPrompt = (
 
 export const hasCitations = (text: string): boolean => /\[S\d+\]/.test(text);
 
+export interface ReportInput {
+  model: ResearchModel;
+  question: string;
+  pack: EvidencePack;
+  maxChars: number;
+  requireCitations: boolean;
+  timeout: number;
+}
+
 export const writeReport = async (
-  model: ResearchModel,
-  question: string,
-  pack: EvidencePack,
-  maxChars: number,
-  requireCitations: boolean,
+  input: ReportInput,
 ): Promise<{ text: string; cited: boolean }> => {
+  const { question, pack, maxChars } = input;
+
   const text = (
-    await model.ask({
+    await input.model.ask({
       system: REPORT_SYSTEM,
       prompt: reportPrompt(question, pack, maxChars),
       maxTokens: 900,
+      timeout: input.timeout,
     })
   ).trim();
 
   const cited = hasCitations(text);
-  if (requireCitations && !cited) {
+  if (input.requireCitations && !cited) {
     return { text: `${MISSING_CITATIONS}. Raw evidence is in structured content.`, cited };
   }
 

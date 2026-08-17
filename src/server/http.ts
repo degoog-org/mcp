@@ -65,6 +65,11 @@ export interface RunningServer {
   stop: () => Promise<void>;
 }
 
+export const BUN_MAX_IDLE_SECONDS = 255;
+
+export const idleSeconds = (idleTimeout: number): number =>
+  Math.min(BUN_MAX_IDLE_SECONDS, Math.max(1, Math.ceil(idleTimeout / 1000)));
+
 export const startServer = async (
   sidecar: Sidecar,
   config: McpConfig,
@@ -72,7 +77,7 @@ export const startServer = async (
   const server = Bun.serve({
     port: config.server.port,
     hostname: config.server.host || undefined,
-    idleTimeout: 120,
+    idleTimeout: idleSeconds(config.server.idleTimeout),
     fetch: sidecar.fetch,
   });
 

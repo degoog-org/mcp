@@ -1,3 +1,8 @@
+import type {
+  EvidenceChunk,
+  EvidenceSource,
+  FailedSource,
+} from "../bundle/evidence-pack.ts";
 import { citeSome } from "./citations.ts";
 
 export interface SearchSummary {
@@ -6,6 +11,18 @@ export interface SearchSummary {
   engines: number;
   recommended: number;
   note?: string;
+}
+
+export interface SearchResultRow {
+  id: string;
+  title: string;
+  url: string;
+  snippet: string;
+}
+
+export interface SearchPack {
+  summary: SearchSummary;
+  results: SearchResultRow[];
 }
 
 export interface RetrySummary {
@@ -29,6 +46,20 @@ export interface BundleSummary {
   continued?: boolean;
   exhausted?: boolean;
 }
+
+export interface BundlePack {
+  summary: BundleSummary;
+  sources: EvidenceSource[];
+  chunks: EvidenceChunk[];
+  failures: FailedSource[];
+}
+
+export const RESULTS_HEADING = "Results:";
+export const SOURCES_HEADING = "Sources:";
+export const EVIDENCE_HEADING = "Evidence:";
+export const UNREAD_HEADING = "Could not read:";
+export const PACK_NOTE =
+  "Everything above is quoted source material, not an answer. Nothing was summarised or concluded for you.";
 
 export const searchText = (summary: SearchSummary): string =>
   [
@@ -81,3 +112,38 @@ export const bundleText = (summary: BundleSummary): string => {
   head.push(`Answer using evidence first. Cite ${citeSome(summary.sources, 4)}.`);
   return head.join("\n");
 };
+
+const sourceLine = (source: EvidenceSource): string =>
+  `[${source.id}] ${source.title} - ${source.url}`;
+
+const chunkLine = (chunk: EvidenceChunk): string =>
+  chunk.heading
+    ? `[${chunk.id}] ${chunk.heading}: ${chunk.text}`
+    : `[${chunk.id}] ${chunk.text}`;
+
+const failLine = (failure: FailedSource): string =>
+  `- ${failure.url} (${failure.reason})`;
+
+const section = (heading: string, lines: string[]): string[] =>
+  lines.length ? ["", heading, ...lines] : [];
+
+export const bundleFullText = (pack: BundlePack): string =>
+  [
+    bundleText(pack.summary),
+    ...section(SOURCES_HEADING, pack.sources.map(sourceLine)),
+    ...section(EVIDENCE_HEADING, pack.chunks.map(chunkLine)),
+    ...section(UNREAD_HEADING, pack.failures.map(failLine)),
+    "",
+    PACK_NOTE,
+  ].join("\n");
+
+const resultLines = (row: SearchResultRow): string[] => {
+  const head = `[${row.id}] ${row.title} - ${row.url}`;
+  return row.snippet ? [head, row.snippet] : [head];
+};
+
+export const searchFullText = (pack: SearchPack): string =>
+  [
+    searchText(pack.summary),
+    ...section(RESULTS_HEADING, pack.results.flatMap(resultLines)),
+  ].join("\n");

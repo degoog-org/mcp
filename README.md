@@ -2,8 +2,8 @@
 
 A MCP sidecar for [Degoog](https://github.com/degoog-org/degoog).
 
-It gives any MCP-capable client a set of search tools backed by your own Degoog instance. 
-Every tool except `deep_search` is search and HTML parsing. Your client's model writes the answer. 
+It gives any MCP-capable client a set of search tools backed by your own Degoog instance.
+Every tool except `deep_search` is search and HTML parsing. Your client's model writes the answer.
 
 ## What it does, and what it does not
 
@@ -16,8 +16,8 @@ The server will:
 - attempt sources in Degoog order, and keep walking down that order when a scrape fails
 - report failures instead of hiding them
 
-It will **not** reorder results by authority, freshness, query match, domain, URL depth, HTTPS, or engine agreement. 
-Degoog's score is passed through as `degoogScore` metadata, and engine agreement is reported as a `reasons` string, so the client model can weigh them itself, reason and decide what's worth outputting. 
+It will **not** reorder results by authority, freshness, query match, domain, URL depth, HTTPS, or engine agreement.
+Degoog's score is passed through as `degoogScore` metadata, and engine agreement is reported as a `reasons` string, so the client model can weigh them itself, reason and decide what's worth outputting.
 
 Everything should come back with stable `[S1]`, `[S2]` source ids.
 
@@ -38,16 +38,16 @@ Then `docker compose restart` and check `curl -s http://localhost:4443/healthz`.
 
 ## Tools
 
-| Tool | What it does |
-| --- | --- |
-| `search` | Degoog search, deduped and capped, in Degoog order, with scrape recommendations. |
-| `scrape` | Fetch explicit http(s) URLs, return cleaned evidence chunks. One row per URL, failures included. |
-| `bundle_search` | Search, read sources in Degoog order, return one compact evidence pack. |
-| `deep_search` | Iterative research loop driven by an LLM provider you configure. Off by default, still listed. |
-| `discover` | Search types, aliases, engine ids, commands, caps, what is enabled. |
-| `retry_engine` | Re-run one engine instead of the whole search. |
-| `command` | Run a Degoog bang command such as `!uuid`. |
-| `health` | Sidecar health, Degoog reachability, auth status, caps. |
+| Tool            | What it does                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------ |
+| `search`        | Degoog search, deduped and capped, in Degoog order, with scrape recommendations.                 |
+| `scrape`        | Fetch explicit http(s) URLs, return cleaned evidence chunks. One row per URL, failures included. |
+| `bundle_search` | Search, read sources in Degoog order, return one compact evidence pack.                          |
+| `deep_search`   | Iterative research loop driven by an LLM provider you configure. Off by default, still listed.   |
+| `discover`      | Search types, aliases, engine ids, commands, caps, what is enabled.                              |
+| `retry_engine`  | Re-run one engine instead of the whole search.                                                   |
+| `command`       | Run a Degoog bang command such as `!uuid`.                                                       |
+| `health`        | Sidecar health, Degoog reachability, auth status, caps.                                          |
 
 Degoog autocomplete is not exposed as a tool. It is autocomplete, not evidence, and it tempted agents into wasting calls. It remains available internally for opt-in query expansion in `bundle_search`.
 
@@ -72,7 +72,12 @@ Structured content carries the capped result rows, engine timings, source overla
 ```json
 {
   "searchTypes": ["web", "images", "news", "videos", "file", "weeb"],
-  "aliasesAccepted": ["engine:images", "engine:news", "engine-images", "engine-news"]
+  "aliasesAccepted": [
+    "engine:images",
+    "engine:news",
+    "engine-images",
+    "engine-news"
+  ]
 }
 ```
 
@@ -85,7 +90,11 @@ Types backed by a Degoog plugin tab rather than an engine route to `/api/tab-sea
 ### `scrape`
 
 ```json
-{ "urls": ["https://bun.sh/docs"], "query": "http server api", "maxChars": 3000 }
+{
+  "urls": ["https://bun.sh/docs"],
+  "query": "http server api",
+  "maxChars": 3000
+}
 ```
 
 Static fetch only. No JavaScript execution, no browser binaries in the image. A JS-only page comes back as an explicit failure row saying it needs browser rendering rather than pretending it extracted something.
@@ -122,6 +131,32 @@ Every source and every chunk carries a `match`, the percentage of your query's t
 
 Selection is ordered by Degoog. Structured content reports `selectionPolicy: "degoog_order_readable_sources"` alongside a `selection` block with how many sources were attempted, how many waves ran, whether it continued past a failure, and whether it ran out of candidates.
 
+#### Visible text: `compact` and `full`
+
+`bundleSearch.textMode` decides how much of the pack lands in visible text. It defaults to `compact`, which is the summary shown above, with sources and evidence living in `structuredContent`.
+
+Small local models often skip `structuredContent` and answer from visible text alone, which is how a rich pack turns into a vague reply. `textMode: full` writes the pack where those clients will actually read it:
+
+```text
+Bundle ready: 2 useful sources from top Degoog-ranked readable pages, 4 evidence chunks, 1 failed.
+Answer using evidence first. Cite [S1], [S2].
+
+Sources:
+[S1] Official docs - https://example.com/docs
+[S2] Community guide - https://example.net/guide
+
+Evidence:
+[S1] Installing: install the thing with the package manager you already use.
+[S2] Configuring: the config file is read from the working directory.
+
+Could not read:
+- https://example.org/gone (HTTP 410)
+
+Everything above is quoted source material, not an answer. Nothing was summarised or concluded for you.
+```
+
+It's an evidence pack and no conclusions happen on the mcp side of things, the model should always be the brain of the research. `structuredContent` is unchanged apart from a `textMode` field naming the mode that ran. The visible text stays inside the existing `maxEvidenceChars` budget.
+
 When a top source fails to scrape, the tool continues down Degoog order to the next candidate rather than returning a short pack. It attempts `maxScrapeUrls + scrapeOverage` in one batch, keeps the first `maxScrapeUrls` readable results in Degoog order, and runs at most one follow-up wave if still short, bounded by `maxScrapeAttempts`. The evidence budget is divided by the target source count, not by the number of attempts, so extra attempts never shrink the evidence.
 
 ### `retry_engine`
@@ -149,16 +184,16 @@ Configuring it is the one advanced setup in this sidecar, so it has its own guid
 
 `server.authTokenEnv` and `degoog.apiKeyEnv` name the environment variables to read, they never store the secret itself. `deepSearch.apiKey` can be a literal key or `${YOUR_PROVIDER_KEY}`, see [DEEP_SEARCH.md](DEEP_SEARCH.md).
 
-| Variable | Purpose |
-| --- | --- |
-| `DEGOOG_MCP_AUTH_TOKEN` | Bearer token required on `/mcp`. Empty means no auth. |
-| `DEGOOG_MCP_DEGOOG_API_KEY` | Degoog API key, sent as a bearer token to Degoog. |
-| `DEGOOG_MCP_CONFIG` | Config file path override. |
-| `DEGOOG_MCP_DEGOOG_URL` | Degoog base URL override. Wins over `mcp.yml`. |
-| `DEGOOG_MCP_PORT` | Listen port override. |
-| `DEGOOG_MCP_BIND_HOST` | Bind host override. Empty binds everywhere. |
-| `DEGOOG_MCP_LOG_LEVEL` | `debug`, `info`, `warn` or `error`. |
-| `DEGOOG_MCP_USER_AGENT` | User agent used when scraping. |
+| Variable                    | Purpose                                               |
+| --------------------------- | ----------------------------------------------------- |
+| `DEGOOG_MCP_AUTH_TOKEN`     | Bearer token required on `/mcp`. Empty means no auth. |
+| `DEGOOG_MCP_DEGOOG_API_KEY` | Degoog API key, sent as a bearer token to Degoog.     |
+| `DEGOOG_MCP_CONFIG`         | Config file path override.                            |
+| `DEGOOG_MCP_DEGOOG_URL`     | Degoog base URL override. Wins over `mcp.yml`.        |
+| `DEGOOG_MCP_PORT`           | Listen port override.                                 |
+| `DEGOOG_MCP_BIND_HOST`      | Bind host override. Empty binds everywhere.           |
+| `DEGOOG_MCP_LOG_LEVEL`      | `debug`, `info`, `warn` or `error`.                   |
+| `DEGOOG_MCP_USER_AGENT`     | User agent used when scraping.                        |
 
 ## Configuration
 
@@ -220,13 +255,22 @@ bundleSearch:
 
 `output.mode: full` includes debug detail. `structured-only` drops the visible text for clients that only read structured content.
 
+If a small model handles `search` fine but answers vaguely from `bundle_search`, it is probably not reading `structuredContent`. Give it the evidence in plain text instead:
+
+```yaml
+bundleSearch:
+  textMode: full
+```
+
+That prints the source rows and evidence chunks into visible text, bounded by `maxEvidenceChars` as always. It still returns evidence rather than a generated answer, so the model has something concrete to quote instead of a summary line to paraphrase.
+
 ## Endpoints
 
-| Path | Purpose |
-| --- | --- |
-| `/mcp` | MCP streamable HTTP endpoint. |
+| Path                  | Purpose                                 |
+| --------------------- | --------------------------------------- |
+| `/mcp`                | MCP streamable HTTP endpoint.           |
 | `/health`, `/healthz` | Liveness with name, version and uptime. |
-| `/ready`, `/readyz` | Readiness. |
+| `/ready`, `/readyz`   | Readiness.                              |
 
 ## Development
 

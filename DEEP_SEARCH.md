@@ -79,6 +79,9 @@ deepSearch:
   maxScrapeAttempts: 16
   maxEvidenceChars: 20000
   requireCitations: true
+  timeout: 240000
+  providerTimeout: 90000
+  reportTimeout: 120000
 ```
 
 | Field | Meaning |
@@ -98,8 +101,11 @@ deepSearch:
 | `maxScrapeAttempts` | Hard ceiling on scrape attempts for the whole run, failures included. |
 | `maxEvidenceChars` | Total evidence budget handed to the report call. |
 | `requireCitations` | Reject a report that cites nothing. |
+| `timeout` | Whole `deep_search` deadline in milliseconds. |
+| `providerTimeout` | Deadline for each planning or coverage-evaluation provider call, in milliseconds. |
+| `reportTimeout` | Deadline for the final report provider call, in milliseconds. |
 
-There are three provider calls per iteration: plan queries, evaluate coverage, write the report. `maxTokens` applies to each of them, so a run costs roughly `maxIterations * 3` calls of up to `maxTokens` output.
+There are three provider calls per iteration: plan queries, evaluate coverage, write the report. `maxTokens` applies to each of them, so a run costs roughly `maxIterations * 3` calls of up to `maxTokens` output. Timeout values are milliseconds.
 
 Source gathering works the same way as `bundle_search`: sources are attempted in Degoog order, `maxScrapeUrls + scrapeOverage` at a time, and when a page 403s or turns out to be JavaScript-only the loop keeps walking down Degoog order instead of returning a thinner pack. `maxScrapeAttempts` bounds the total. The `selection` block in the structured output reports what was attempted, how many waves ran, and whether it ran out of candidates or hit the ceiling.
 
@@ -212,3 +218,22 @@ deepSearch:
 `deepSearchEnabled` is the raw config flag. `deepSearchReady` is what actually matters: enabled **and** configured. An instance that is enabled but missing a model reports `ready: false` and is listed under `disabledTools`, so nothing ever reports a broken tool as available.
 
 A successful run carries `provider` and `providerModel` in its structured output, so a report always says which model produced it.
+
+---
+
+## Timeouts
+
+Every timeout in `mcp.yml` is milliseconds. `deepSearch.timeout` caps the whole run, `providerTimeout` caps each planning/evaluation call, and `reportTimeout` caps the final report call. If a local model is slow, raise those values or lower `maxIterations`, `maxScrapeUrls`, and `maxTokens`.
+
+---
+
+## Small models
+
+If a small model handles `search` fine but answers vaguely from `bundle_search`, it is probably not reading `structuredContent`. Set this so sources and evidence chunks are printed as visible text:
+
+```yaml
+bundleSearch:
+  textMode: full
+```
+
+That still returns evidence, not a generated answer, and the existing `maxEvidenceChars` budget still bounds the output.
