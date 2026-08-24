@@ -43,6 +43,7 @@ export interface DegoogConfig {
 
 export interface OutputConfig {
   mode: OutputMode;
+  guidance: boolean;
 }
 
 export interface SearchConfig {
@@ -61,6 +62,8 @@ export interface ScrapeConfig {
   maxChunksPerUrl: number;
   chunkChars: number;
   allowPrivateIps: boolean;
+  maxEvidenceChars: number;
+  textMode: TextMode;
 }
 
 export interface BundleSearchConfig {

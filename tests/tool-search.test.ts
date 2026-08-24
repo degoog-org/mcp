@@ -206,6 +206,55 @@ describe("search tool", () => {
     await server.stop();
   });
 
+  test("guidance off drops the next-step line and keeps the metadata", async () => {
+    const server = serveFake(() => Response.json(fakeSearch(results)));
+    const ctx = makeCtx(server.url, { output: { guidance: false } });
+
+    const result = await runSearchTool(ctx, { query: "bun http server" });
+    const text = visibleText(result);
+
+    expect(text).not.toContain("Use scrape if snippets are not enough.");
+    expect(text).toContain("Search ready:");
+    expect(text).toContain("Suggested to read, in Degoog order:");
+    expect(structured(result).scrapeRecommendations).toBeDefined();
+
+    await server.stop();
+  });
+
+  test("guidance off still prints the evidence in full text mode", async () => {
+    const server = serveFake(() => Response.json(fakeSearch(results)));
+    const ctx = makeCtx(server.url, {
+      output: { guidance: false },
+      search: { textMode: TextMode.Full },
+    });
+
+    const result = await runSearchTool(ctx, { query: "bun http server" });
+    const rows = structured(result).results as Array<Record<string, string>>;
+    const text = visibleText(result);
+
+    expect(text).not.toContain("Use scrape if snippets are not enough.");
+    expect(text).toContain("Results:");
+    expect(text).toContain(`[${rows[0]?.id}] ${rows[0]?.title} - ${rows[0]?.url}`);
+
+    await server.stop();
+  });
+
+  test("full text mode separates the result blocks so they do not read as one wall", async () => {
+    const server = serveFake(() => Response.json(fakeSearch(results)));
+    const ctx = makeCtx(server.url, { search: { textMode: TextMode.Full } });
+
+    const result = await runSearchTool(ctx, { query: "bun http server" });
+    const rows = structured(result).results as Array<Record<string, string>>;
+    const lines = visibleText(result).split("\n");
+
+    for (const row of rows.slice(1)) {
+      const at = lines.findIndex((line) => line.startsWith(`[${row.id}] `));
+      expect(lines[at - 1]).toBe("");
+    }
+
+    await server.stop();
+  });
+
   test("full text mode leaves the structured results alone", async () => {
     const server = serveFake(() => Response.json(fakeSearch(results)));
     const compact = structured(

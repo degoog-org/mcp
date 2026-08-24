@@ -104,6 +104,7 @@ const mergeConfig = (raw: Raw): McpConfig => {
     },
     output: {
       mode: asOneOf(output.mode, Object.values(OutputMode), d.output.mode),
+      guidance: asBool(output.guidance, d.output.guidance),
     },
     search: {
       maxResults: positive(search.maxResults, d.search.maxResults),
@@ -136,6 +137,15 @@ const mergeConfig = (raw: Raw): McpConfig => {
       allowPrivateIps: asBool(
         scrape.allowPrivateIps,
         d.scrape.allowPrivateIps,
+      ),
+      maxEvidenceChars: positive(
+        scrape.maxEvidenceChars,
+        d.scrape.maxEvidenceChars,
+      ),
+      textMode: asOneOf(
+        scrape.textMode,
+        Object.values(TextMode),
+        d.scrape.textMode,
       ),
     },
     bundleSearch: {

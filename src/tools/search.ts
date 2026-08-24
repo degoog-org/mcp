@@ -11,6 +11,7 @@ import {
   searchFullText,
   searchText,
   type SearchPack,
+  type VisibleOpts,
 } from "../output/visible.ts";
 import { recentScrapeFailure } from "../scrape/failures.ts";
 import { pickScrapable, runPipeline } from "../search/pipeline.ts";
@@ -78,8 +79,10 @@ export const toSourceRow = (result: ShapedResult, index: number): SourceRow => (
   reasons: result.reasons,
 });
 
-export const searchVisible = (mode: TextMode, pack: SearchPack): string =>
-  mode === TextMode.Full ? searchFullText(pack) : searchText(pack.summary);
+export const searchVisible = (opts: VisibleOpts, pack: SearchPack): string =>
+  opts.mode === TextMode.Full
+    ? searchFullText(pack, opts.guidance)
+    : searchText(pack.summary, opts.guidance);
 
 export const runSearchTool = async (
   ctx: ToolContext,
@@ -174,16 +177,19 @@ export const runSearchTool = async (
     }
 
     return toolResult(
-      searchVisible(config.search.textMode, {
-        summary: {
-          results: sources.length,
-          domains: pipeline.domains,
-          engines: pipeline.engines,
-          recommended: recommended.length,
-          note: typeWarning,
+      searchVisible(
+        { mode: config.search.textMode, guidance: config.output.guidance },
+        {
+          summary: {
+            results: sources.length,
+            domains: pipeline.domains,
+            engines: pipeline.engines,
+            recommended: recommended.length,
+            note: typeWarning,
+          },
+          results: sources,
         },
-        results: sources,
-      }),
+      ),
       structured,
     );
   } catch (err) {

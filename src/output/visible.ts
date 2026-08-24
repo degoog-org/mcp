@@ -3,7 +3,25 @@ import type {
   EvidenceSource,
   FailedSource,
 } from "../bundle/evidence-pack.ts";
-import { citeSome } from "./citations.ts";
+import { TextMode } from "../config/schema.ts";
+import { citeRange, citeSome } from "./citations.ts";
+
+export interface VisibleOpts {
+  mode: TextMode;
+  guidance: boolean;
+}
+
+export interface LinkedSource {
+  id: string;
+  title: string;
+  url: string;
+}
+
+export interface LinkedChunk {
+  id: string;
+  heading?: string;
+  text: string;
+}
 
 export interface SearchSummary {
   results: number;
@@ -37,6 +55,14 @@ export interface ScrapeSummary {
   requested: number;
   useful: number;
   failed: number;
+  chunksOmitted?: number;
+}
+
+export interface ScrapePack {
+  summary: ScrapeSummary;
+  sources: LinkedSource[];
+  chunks: LinkedChunk[];
+  failures: FailedSource[];
 }
 
 export interface BundleSummary {
@@ -61,11 +87,11 @@ export const UNREAD_HEADING = "Could not read:";
 export const PACK_NOTE =
   "Everything above is quoted source material, not an answer. Nothing was summarised or concluded for you.";
 
-export const searchText = (summary: SearchSummary): string =>
+export const searchText = (summary: SearchSummary, guidance: boolean): string =>
   [
     `Search ready: ${summary.results} results, ${summary.domains} domains, ${summary.engines} engines.`,
     `Suggested to read, in Degoog order: ${citeSome(summary.recommended)}.`,
-    "Use scrape if snippets are not enough.",
+    ...(guidance ? ["Use scrape if snippets are not enough."] : []),
     ...(summary.note ? [summary.note] : []),
   ].join("\n");
 
@@ -89,13 +115,34 @@ export const retryText = (summary: RetrySummary): string => {
   return lines.join("\n");
 };
 
+const scrapeHead = (summary: ScrapeSummary): string[] => [
+  `Scraped ${summary.requested} URLs: ${summary.useful} useful, ${summary.failed} failed.`,
+  ...(summary.useful ? [`Sources are labelled ${citeRange(summary.useful)}.`] : []),
+];
+
+const omittedNote = (count = 0): string[] =>
+  count ? ["", `${count} more evidence chunks are in the structured content.`] : [];
+
 export const scrapeText = (summary: ScrapeSummary): string =>
   [
-    `Scraped ${summary.requested} URLs: ${summary.useful} useful, ${summary.failed} failed.`,
-    "Top evidence chunks are in structured content. Cite source IDs.",
+    ...scrapeHead(summary),
+    ...(summary.useful
+      ? ["Evidence chunks for each URL are in the structured content."]
+      : []),
   ].join("\n");
 
-export const bundleText = (summary: BundleSummary): string => {
+export const scrapeFullText = (pack: ScrapePack): string =>
+  [
+    ...scrapeHead(pack.summary),
+    ...section(SOURCES_HEADING, pack.sources.map(sourceLine)),
+    ...section(EVIDENCE_HEADING, pack.chunks.map(chunkLine)),
+    ...section(UNREAD_HEADING, pack.failures.map(failLine)),
+    ...omittedNote(pack.summary.chunksOmitted),
+    "",
+    PACK_NOTE,
+  ].join("\n");
+
+export const bundleText = (summary: BundleSummary, guidance: boolean): string => {
   const head = [
     `Bundle ready: ${summary.sources} useful sources from top Degoog-ranked readable pages, ${summary.chunks} evidence chunks, ${summary.failures} failed.`,
   ];
@@ -109,14 +156,18 @@ export const bundleText = (summary: BundleSummary): string => {
     head.push("Ran out of candidates before reaching the requested source count.");
   }
 
-  head.push(`Answer using evidence first. Cite ${citeSome(summary.sources, 4)}.`);
+  head.push(
+    guidance
+      ? `Answer using evidence first. Cite ${citeSome(summary.sources, 4)}.`
+      : `Sources are labelled ${citeRange(summary.sources)}.`,
+  );
   return head.join("\n");
 };
 
-const sourceLine = (source: EvidenceSource): string =>
+const sourceLine = (source: LinkedSource): string =>
   `[${source.id}] ${source.title} - ${source.url}`;
 
-const chunkLine = (chunk: EvidenceChunk): string =>
+const chunkLine = (chunk: LinkedChunk): string =>
   chunk.heading
     ? `[${chunk.id}] ${chunk.heading}: ${chunk.text}`
     : `[${chunk.id}] ${chunk.text}`;
@@ -127,9 +178,9 @@ const failLine = (failure: FailedSource): string =>
 const section = (heading: string, lines: string[]): string[] =>
   lines.length ? ["", heading, ...lines] : [];
 
-export const bundleFullText = (pack: BundlePack): string =>
+export const bundleFullText = (pack: BundlePack, guidance: boolean): string =>
   [
-    bundleText(pack.summary),
+    bundleText(pack.summary, guidance),
     ...section(SOURCES_HEADING, pack.sources.map(sourceLine)),
     ...section(EVIDENCE_HEADING, pack.chunks.map(chunkLine)),
     ...section(UNREAD_HEADING, pack.failures.map(failLine)),
@@ -142,8 +193,11 @@ const resultLines = (row: SearchResultRow): string[] => {
   return row.snippet ? [head, row.snippet] : [head];
 };
 
-export const searchFullText = (pack: SearchPack): string =>
+const spacedResults = (rows: SearchResultRow[]): string[] =>
+  rows.flatMap((row, index) => (index ? ["", ...resultLines(row)] : resultLines(row)));
+
+export const searchFullText = (pack: SearchPack, guidance: boolean): string =>
   [
-    searchText(pack.summary),
-    ...section(RESULTS_HEADING, pack.results.flatMap(resultLines)),
+    searchText(pack.summary, guidance),
+    ...section(RESULTS_HEADING, spacedResults(pack.results)),
   ].join("\n");

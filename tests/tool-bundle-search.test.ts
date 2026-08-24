@@ -203,6 +203,54 @@ describe("bundle search evidence pack", () => {
   });
 });
 
+describe("bundle search guidance", () => {
+  const quietCtx = (extra = {}) =>
+    makeCtx(server.url, { output: { guidance: false }, ...extra });
+
+  test("on by default, the pack tells a small model what to do with it", async () => {
+    const text = visibleText(
+      await runBundleTool(makeCtx(server.url), { query: "install the thing" }),
+    );
+
+    expect(text).toContain("Answer using evidence first. Cite [S1]");
+  });
+
+  test("off swaps the instruction for the plain id legend", async () => {
+    const result = await runBundleTool(quietCtx(), { query: "install the thing" });
+    const pack = packOf(result);
+    const text = visibleText(result);
+
+    expect(text).not.toContain("Answer using evidence first");
+    expect(text).toContain(`Sources are labelled S1-S${pack.sources.length}.`);
+    expect(text).toContain("Bundle ready:");
+  });
+
+  test("off keeps the evidence and the source-material note in full mode", async () => {
+    const result = await runBundleTool(
+      quietCtx({ bundleSearch: { textMode: TextMode.Full } }),
+      { query: "install the thing" },
+    );
+    const pack = packOf(result);
+    const text = visibleText(result);
+
+    expect(text).not.toContain("Answer using evidence first");
+    expect(text).toContain("Sources:");
+    expect(text).toContain("Evidence:");
+    expect(text).toContain(pack.evidence[0]?.text as string);
+    expect(text).toContain("not an answer");
+  });
+
+  test("off leaves the structured pack untouched", async () => {
+    const on = packOf(
+      await runBundleTool(makeCtx(server.url), { query: "install the thing" }),
+    );
+    const off = packOf(await runBundleTool(quietCtx(), { query: "install the thing" }));
+
+    expect(off.sources).toEqual(on.sources);
+    expect(off.evidence).toEqual(on.evidence);
+  });
+});
+
 describe("bundle search text mode", () => {
   const fullCtx = () =>
     makeCtx(server.url, { bundleSearch: { textMode: TextMode.Full } });

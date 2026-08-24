@@ -26,6 +26,7 @@ export const DEFAULT_CONFIG: McpConfig = {
   },
   output: {
     mode: OutputMode.Compact,
+    guidance: true,
   },
   search: {
     maxResults: 8,
@@ -42,6 +43,8 @@ export const DEFAULT_CONFIG: McpConfig = {
     maxChunksPerUrl: 4,
     chunkChars: 700,
     allowPrivateIps: false,
+    maxEvidenceChars: 8000,
+    textMode: TextMode.Compact,
   },
   bundleSearch: {
     maxQueries: 8,
@@ -103,6 +106,7 @@ degoog:
 
 output:
   mode: compact # compact | balanced | full | structured-only
+  guidance: true # false drops the lines that tell a model what to do next
 
 search:
   maxResults: 8
@@ -119,6 +123,8 @@ scrape:
   maxChunksPerUrl: 4
   chunkChars: 700
   allowPrivateIps: false
+  maxEvidenceChars: 8000
+  textMode: compact # compact | full
 
 bundleSearch:
   maxQueries: 8

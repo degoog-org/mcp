@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { OutputMode } from "../src/config/schema.ts";
+import { OutputMode, TextMode } from "../src/config/schema.ts";
 import { BROWSER_HINT } from "../src/scrape/pipeline.ts";
 import { runScrapeTool } from "../src/tools/scrape.ts";
 import { longText, makeCtx, pageHtml, serveFake, structured, visibleText } from "./helpers.ts";
@@ -160,6 +160,78 @@ describe("scrape tool", () => {
 
     expect(result.isError).toBe(true);
     expect(error.kind).toBe("input");
+  });
+
+  test("compact text names the source ids without dumping evidence", async () => {
+    const result = await runScrapeTool(makeCtx(pages.url), {
+      urls: [`${pages.url}/good`],
+    });
+    const text = visibleText(result);
+
+    expect(structured(result).textMode).toBe(TextMode.Compact);
+    expect(text).toContain("Sources are labelled S1.");
+    expect(text).not.toContain("Evidence:");
+    expect(text).not.toContain("Cite source IDs");
+  });
+
+  test("the legend names every source id, not the first few", async () => {
+    const ctx = makeCtx(pages.url, { scrape: { maxUrls: 4 } });
+    const urls = ["/good", "/good?a", "/good?b", "/good?c"].map(
+      (path) => `${pages.url}${path}`,
+    );
+
+    const result = await runScrapeTool(ctx, { urls });
+    const rows = rowsOf(result);
+    const last = rows[rows.length - 1] as Row;
+
+    expect(rows).toHaveLength(4);
+    expect(structured(result).counts).toEqual({ useful: 4, failed: 0 });
+    expect(visibleText(result)).toContain(`Sources are labelled S1-${last.id}.`);
+  });
+
+  test("full text mode prints sources and evidence for clients that ignore structured content", async () => {
+    const ctx = makeCtx(pages.url, { scrape: { textMode: TextMode.Full } });
+    const urls = [`${pages.url}/good`, `${pages.url}/missing`];
+
+    const result = await runScrapeTool(ctx, { urls });
+    const rows = rowsOf(result);
+    const text = visibleText(result);
+    const good = rows[0] as Row;
+
+    expect(structured(result).textMode).toBe(TextMode.Full);
+    expect(text).toContain("Sources:");
+    expect(text).toContain(`[${good.id}] ${good.title} - ${good.url}`);
+    expect(text).toContain("Evidence:");
+    expect(text).toContain(good.chunks[0]?.text as string);
+    expect(text).toContain("Could not read:");
+    expect(text).toContain(`${pages.url}/missing`);
+  });
+
+  test("full text mode leaves the structured rows alone", async () => {
+    const urls = [`${pages.url}/good`];
+    const compact = structured(await runScrapeTool(makeCtx(pages.url), { urls }));
+    const full = structured(
+      await runScrapeTool(makeCtx(pages.url, { scrape: { textMode: TextMode.Full } }), {
+        urls,
+      }),
+    );
+
+    expect(full.sources).toEqual(compact.sources);
+    expect(full.counts).toEqual(compact.counts);
+  });
+
+  test("visible evidence stays inside the char budget and says what it held back", async () => {
+    const ctx = makeCtx(pages.url, {
+      scrape: { textMode: TextMode.Full, maxEvidenceChars: 300 },
+    });
+
+    const result = await runScrapeTool(ctx, { urls: [`${pages.url}/good`] });
+    const rows = rowsOf(result);
+    const text = visibleText(result);
+
+    expect(rows[0]?.chunks.length).toBeGreaterThan(1);
+    expect(text).toContain("more evidence chunks are in the structured content.");
+    expect(text.length).toBeLessThan(1200);
   });
 
   test("reports the renderer so clients know javascript is not executed", async () => {

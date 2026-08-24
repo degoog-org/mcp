@@ -141,6 +141,32 @@ describe("merging", () => {
     );
   });
 
+  test("guidance defaults on and can be switched off", async () => {
+    const plain = join(dir, "plain-guidance.yml");
+    const off = join(dir, "guidance-off.yml");
+    await writeFile(plain, 'degoog:\n  url: "http://degoog.local:4444"\n');
+    await writeFile(off, "output:\n  guidance: false\n");
+
+    expect((await loadConfig({ path: plain })).config.output.guidance).toBe(true);
+    expect(DEFAULT_CONFIG.output.guidance).toBe(true);
+    expect((await loadConfig({ path: off })).config.output.guidance).toBe(false);
+  });
+
+  test("scrape text mode defaults to compact and accepts full", async () => {
+    const plain = join(dir, "plain.yml");
+    const full = join(dir, "scrape-full.yml");
+    await writeFile(plain, 'degoog:\n  url: "http://degoog.local:4444"\n');
+    await writeFile(full, "scrape:\n  textMode: full\n");
+
+    expect((await loadConfig({ path: plain })).config.scrape.textMode).toBe(
+      TextMode.Compact,
+    );
+    expect(DEFAULT_CONFIG.scrape.textMode).toBe(TextMode.Compact);
+    expect((await loadConfig({ path: full })).config.scrape.textMode).toBe(
+      TextMode.Full,
+    );
+  });
+
   test("coerces yaml false for query expansion", async () => {
     const path = join(dir, "mcp.yml");
     await writeFile(path, "bundleSearch:\n  queryExpansion: false\n");

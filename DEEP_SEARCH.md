@@ -234,6 +234,10 @@ If a small model handles `search` fine but answers vaguely from `bundle_search`,
 ```yaml
 bundleSearch:
   textMode: full
+scrape:
+  textMode: full
 ```
 
-That still returns evidence, not a generated answer, and the existing `maxEvidenceChars` budget still bounds the output.
+That still returns evidence, not a generated answer, and the existing `maxEvidenceChars` budget still bounds the output. `scrape` has the same switch and the same budget, so a direct URL fetch reaches those clients too.
+
+Keep `output.guidance` on for these models: it is the line telling them to answer from the evidence and cite it. Turning it off is for capable models composed with other MCP servers, see the README.

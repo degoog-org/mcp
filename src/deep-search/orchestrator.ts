@@ -8,7 +8,7 @@ import {
   ToolErrorKind,
 } from "../output/errors.ts";
 import { toolResult, type ToolResult } from "../output/structured.ts";
-import { bundleVisible, runBundle } from "../tools/bundle-search.ts";
+import { bundleVisible, runBundle, visibleOpts } from "../tools/bundle-search.ts";
 import { ToolName, type ToolContext } from "../tools/context.ts";
 import { logger } from "../utils/logger.ts";
 import { TimeoutError, withTimeLimit } from "../utils/timeout.ts";
@@ -92,7 +92,7 @@ const degradeToBundle = async (
       fix,
       DEGRADED_NOTE,
       "",
-      bundleVisible(ctx.config.bundleSearch.textMode, outcome),
+      bundleVisible(visibleOpts(ctx), outcome),
     ].join("\n");
 
     return toolResult(text, {

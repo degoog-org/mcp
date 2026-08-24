@@ -1,4 +1,4 @@
-# Degoog MCP sidecar configuration.
+# Degoog MCP configuration.
 # Timeout and ttl values are milliseconds.
 
 server:
@@ -14,6 +14,7 @@ degoog:
 
 output:
   mode: compact # compact | balanced | full | structured-only
+  guidance: true # false drops the lines that tell a model what to do next, keeps all metadata
 
 search:
   maxResults: 8
@@ -30,6 +31,8 @@ scrape:
   maxChunksPerUrl: 4
   chunkChars: 700
   allowPrivateIps: false
+  maxEvidenceChars: 8000
+  textMode: compact # compact | full, full prints the sources and evidence as visible text for clients that ignore structuredContent
 
 bundleSearch:
   maxQueries: 8

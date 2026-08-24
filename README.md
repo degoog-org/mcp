@@ -111,6 +111,38 @@ Every requested URL gets exactly one row, including failures.
 
 Safety: non-http(s) is rejected, DNS is checked before the request, redirects are re-checked, private and loopback addresses are blocked unless `scrape.allowPrivateIps` is true, and response bytes are capped.
 
+#### Visible text: `compact` and `full`
+
+`scrape.textMode` works exactly like the `bundle_search` one below. It defaults to `compact`, a summary with the evidence living in `structuredContent`:
+
+```text
+Scraped 3 URLs: 2 useful, 1 failed.
+Sources are labelled S1-S2.
+Evidence chunks for each URL are in the structured content.
+```
+
+Clients that drop `structuredContent` see only that, so the model gets no page content at all. `textMode: full` writes the chunks where those clients read:
+
+```text
+Scraped 3 URLs: 2 useful, 1 failed.
+Sources are labelled S1-S2.
+
+Sources:
+[S1] Bun docs - https://bun.sh/docs
+[S2] Hono guide - https://hono.dev/guide
+
+Evidence:
+[S1] Install: run bun install to fetch deps.
+[S2] Hono routes are declared with app.get.
+
+Could not read:
+- https://example.com/spa (needs browser rendering)
+
+Everything above is quoted source material, not an answer. Nothing was summarised or concluded for you.
+```
+
+Rows in `structuredContent` are identical in both modes, and the ids match. The visible text is bounded by `scrape.maxEvidenceChars`, which is separate from the per-URL `maxCharsPerUrl` budget: four URLs at full depth would otherwise be a lot of text for a small model. Anything held back is counted in a closing line, and it is all still in `structuredContent`.
+
 ### `bundle_search`
 
 The one to point a small model at, this was made SPECIFICALLY to be as performant as possible for 2b/4b/7b models that understand tool calling but aren't the best at reasoning/judging.
@@ -259,6 +291,8 @@ If a small model handles `search` fine but answers vaguely from `bundle_search`,
 
 ```yaml
 bundleSearch:
+  textMode: full
+scrape:
   textMode: full
 ```
 

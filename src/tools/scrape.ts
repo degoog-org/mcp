@@ -1,9 +1,18 @@
 import { z } from "zod";
+import { fitsBudget } from "../bundle/budget.ts";
+import { TextMode } from "../config/schema.ts";
 import { citeId } from "../output/citations.ts";
 import { wantsDetail } from "../output/compact.ts";
 import { errorResult, fromError, ToolErrorKind } from "../output/errors.ts";
 import { toolResult, type ToolResult } from "../output/structured.ts";
-import { scrapeText } from "../output/visible.ts";
+import type { FailedSource } from "../bundle/evidence-pack.ts";
+import {
+  scrapeFullText,
+  scrapeText,
+  type LinkedChunk,
+  type LinkedSource,
+  type ScrapeSummary,
+} from "../output/visible.ts";
 import { capList } from "../search/caps.ts";
 import { noteScrapeRows } from "../scrape/failures.ts";
 import { scrapeUrls, type ScrapeRow } from "../scrape/pipeline.ts";
@@ -56,6 +65,62 @@ export const toEvidenceRow = (row: ScrapeRow, index: number) => ({
   error: row.error,
 });
 
+export interface VisiblePack {
+  sources: LinkedSource[];
+  chunks: LinkedChunk[];
+  failures: FailedSource[];
+  chunksOmitted: number;
+}
+
+export const packRows = (rows: ScrapeRow[], maxChars: number): VisiblePack => {
+  const pack: VisiblePack = {
+    sources: [],
+    chunks: [],
+    failures: [],
+    chunksOmitted: 0,
+  };
+  let used = 0;
+
+  rows.forEach((row, index) => {
+    const id = citeId(index);
+
+    if (!row.ok) {
+      pack.failures.push({ url: row.url, reason: row.error ?? "scrape failed" });
+      return;
+    }
+
+    pack.sources.push({ id, title: row.title || row.url, url: row.finalUrl });
+
+    for (const chunk of row.chunks) {
+      if (!fitsBudget(used, chunk.text.length, maxChars)) {
+        pack.chunksOmitted++;
+        continue;
+      }
+      used += chunk.text.length;
+      pack.chunks.push({ id, heading: chunk.heading ?? undefined, text: chunk.text });
+    }
+  });
+
+  return pack;
+};
+
+export const scrapeVisible = (
+  mode: TextMode,
+  summary: ScrapeSummary,
+  rows: ScrapeRow[],
+  maxChars: number,
+): string => {
+  if (mode !== TextMode.Full) return scrapeText(summary);
+
+  const pack = packRows(rows, maxChars);
+  return scrapeFullText({
+    summary: { ...summary, chunksOmitted: pack.chunksOmitted },
+    sources: pack.sources,
+    chunks: pack.chunks,
+    failures: pack.failures,
+  });
+};
+
 export const runScrapeTool = async (
   ctx: ToolContext,
   args: ScrapeArgs,
@@ -96,6 +161,7 @@ export const runScrapeTool = async (
       counts: { useful, failed },
       sources: rows.map(toEvidenceRow),
       renderer: config.scrape.renderer,
+      textMode: config.scrape.textMode,
     };
 
     if (wantsDetail(config.output.mode)) {
@@ -105,7 +171,12 @@ export const runScrapeTool = async (
     }
 
     return toolResult(
-      scrapeText({ requested: rows.length, useful, failed }),
+      scrapeVisible(
+        config.scrape.textMode,
+        { requested: rows.length, useful, failed },
+        rows,
+        config.scrape.maxEvidenceChars,
+      ),
       structured,
     );
   } catch (err) {

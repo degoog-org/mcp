@@ -15,7 +15,11 @@ import {
   ToolErrorKind,
 } from "../output/errors.ts";
 import { toolResult, type ToolResult } from "../output/structured.ts";
-import { bundleFullText, bundleText } from "../output/visible.ts";
+import {
+  bundleFullText,
+  bundleText,
+  type VisibleOpts,
+} from "../output/visible.ts";
 import { runPipeline } from "../search/pipeline.ts";
 import { noteScrapeRows } from "../scrape/failures.ts";
 import { scrapeUrls } from "../scrape/pipeline.ts";
@@ -247,7 +251,15 @@ export const runBundle = async (
     signal,
   );
 
-export const bundleVisible = (mode: TextMode, outcome: BundleOutcome): string => {
+export const visibleOpts = (ctx: ToolContext): VisibleOpts => ({
+  mode: ctx.config.bundleSearch.textMode,
+  guidance: ctx.config.output.guidance,
+});
+
+export const bundleVisible = (
+  opts: VisibleOpts,
+  outcome: BundleOutcome,
+): string => {
   const { pack } = outcome;
   const summary = {
     sources: pack.sources.length,
@@ -257,14 +269,17 @@ export const bundleVisible = (mode: TextMode, outcome: BundleOutcome): string =>
     exhausted: outcome.gathered.exhausted,
   };
 
-  return mode === TextMode.Full
-    ? bundleFullText({
-        summary,
-        sources: pack.sources,
-        chunks: pack.chunks,
-        failures: pack.failures,
-      })
-    : bundleText(summary);
+  return opts.mode === TextMode.Full
+    ? bundleFullText(
+        {
+          summary,
+          sources: pack.sources,
+          chunks: pack.chunks,
+          failures: pack.failures,
+        },
+        opts.guidance,
+      )
+    : bundleText(summary, opts.guidance);
 };
 
 export const runBundleTool = async (
@@ -291,7 +306,7 @@ export const runBundleTool = async (
     );
 
     return toolResult(
-      bundleVisible(ctx.config.bundleSearch.textMode, outcome),
+      bundleVisible(visibleOpts(ctx), outcome),
       outcome.structured,
     );
   } catch (err) {
