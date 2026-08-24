@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { fitsBudget } from "../bundle/budget.ts";
-import { TextMode } from "../config/schema.ts";
+import { ScrapeRenderer, TextMode, type ScrapeConfig } from "../config/schema.ts";
 import { rendererOf } from "../scrape/fetcher.ts";
 import { citeId } from "../output/citations.ts";
 import { wantsDetail } from "../output/compact.ts";
@@ -48,6 +48,19 @@ export const scrapeShape = {
 };
 
 export type ScrapeArgs = z.infer<z.ZodObject<typeof scrapeShape>>;
+
+const SCRAPE_LEAD =
+  "Fetch explicit http(s) URLs and return cleaned evidence chunks.";
+
+const SCRAPE_TAIL = "One row per URL, including failures.";
+
+const STATIC_NOTE =
+  "Static fetch only, no JavaScript rendering, so app-shell pages come back as failure rows.";
+
+export const scrapeAbout = (config: ScrapeConfig): string =>
+  rendererOf(config) === ScrapeRenderer.Static
+    ? `${SCRAPE_LEAD} ${STATIC_NOTE} ${SCRAPE_TAIL}`
+    : `${SCRAPE_LEAD} ${SCRAPE_TAIL}`;
 
 export const toEvidenceRow = (row: ScrapeRow, index: number) => ({
   id: citeId(index),

@@ -13,7 +13,7 @@ import {
 import { runDiscoverTool } from "./discover.ts";
 import { runHealthTool } from "./health.ts";
 import { runRetryTool, retryShape, type RetryArgs } from "./retry-engine.ts";
-import { runScrapeTool, scrapeShape, type ScrapeArgs } from "./scrape.ts";
+import { runScrapeTool, scrapeAbout, scrapeShape, type ScrapeArgs } from "./scrape.ts";
 import { runSearchTool, searchShape, type SearchArgs } from "./search.ts";
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: true } as const;
@@ -49,8 +49,7 @@ export const registerTools = (
     ToolName.Scrape,
     {
       title: "Scrape URLs",
-      description:
-        "Fetch explicit http(s) URLs and return cleaned evidence chunks. Static fetch only, no JavaScript rendering, so app-shell pages come back as failure rows. One row per URL, including failures.",
+      description: scrapeAbout(ctx.config.scrape),
       inputSchema: scrapeShape,
       annotations: READ_ONLY,
     },

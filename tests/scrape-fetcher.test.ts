@@ -3,6 +3,7 @@ import { DEFAULT_CONFIG } from "../src/config/defaults.ts";
 import { ScrapeRenderer, type FetcherConfig } from "../src/config/schema.ts";
 import { fetchVia, FetcherError, rendererOf } from "../src/scrape/fetcher.ts";
 import { scrapeUrls } from "../src/scrape/pipeline.ts";
+import { scrapeAbout } from "../src/tools/scrape.ts";
 import { pageHtml, serveFake } from "./helpers.ts";
 
 const OPTIONS = {
@@ -175,5 +176,26 @@ describe("pipeline with a fetcher configured", () => {
 
   test("falls back to static fetch when no fetcher url is set", () => {
     expect(rendererOf(DEFAULT_CONFIG.scrape)).toBe(ScrapeRenderer.Static);
+  });
+});
+
+describe("scrape tool description", () => {
+  test("warns about static fetch when no fetcher is configured", () => {
+    const about = scrapeAbout(DEFAULT_CONFIG.scrape);
+
+    expect(about).toContain("Static fetch only");
+    expect(about).toContain("One row per URL");
+  });
+
+  test("says nothing about rendering once a fetcher url is set", () => {
+    const about = scrapeAbout({
+      ...DEFAULT_CONFIG.scrape,
+      fetcher: fetcherOf({ url: "http://renderer:8080/content" }),
+    });
+
+    expect(about).not.toContain("Static fetch only");
+    expect(about).not.toContain("JavaScript");
+    expect(about).not.toContain("render");
+    expect(about).toContain("One row per URL");
   });
 });
