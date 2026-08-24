@@ -31,6 +31,7 @@ scrape:
   maxChunksPerUrl: 4
   chunkChars: 700
   allowPrivateIps: false
+  hideImages: false # true drops image alt/aria-label/title text from extracted pages
   maxEvidenceChars: 8000
   textMode: compact # compact | full, full prints the sources and evidence as visible text for clients that ignore structuredContent
 

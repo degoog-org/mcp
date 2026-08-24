@@ -92,6 +92,57 @@ describe("extraction", () => {
     expect(result.needsBrowser).toBe(false);
   });
 
+  test("keeps image labels inside tables, lists and text", () => {
+    const html = `<html><body><main>
+      <p>${longText("body", 8)}</p>
+      <table><tr>
+        <td><img src="octarine.png" alt="Octarine Core"></td>
+        <td>20.7%</td>
+        <td>51.1% wr</td>
+      </tr></table>
+      <ul><li><img src="hex.png" aria-label="Scythe of Vyse"> picked often</li></ul>
+      <figure><img src="chart.png" title="Winrate chart"></figure>
+    </main></body></html>`;
+
+    const result = extract(html, "https://stats.example/hero");
+
+    expect(result.text).toContain("| Octarine Core | 20.7% | 51.1% wr |");
+    expect(result.text).toContain("Scythe of Vyse picked often");
+    expect(result.text).toContain("Winrate chart");
+  });
+
+  test("drops image labels when hideImages is on", () => {
+    const html = `<html><body><main>
+      <p>${longText("body", 8)}</p>
+      <table><tr>
+        <td><img src="octarine.png" alt="Octarine Core"></td>
+        <td>20.7%</td>
+      </tr></table>
+    </main></body></html>`;
+
+    const result = extract(html, "https://stats.example/hero", {
+      hideImages: true,
+    });
+
+    expect(result.text).not.toContain("Octarine Core");
+    expect(result.text).toContain("| 20.7% |");
+  });
+
+  test("ignores decorative and unlabelled images", () => {
+    const html = `<html><body><main>
+      <p>${longText("body", 8)}</p>
+      <table><tr>
+        <td><img src="spacer.gif" alt=""></td>
+        <td><img src="pixel.gif"></td>
+        <td>20.7%</td>
+      </tr></table>
+    </main></body></html>`;
+
+    const result = extract(html, "https://stats.example/hero");
+
+    expect(result.text).toContain("| 20.7% |");
+  });
+
   test("strips copy buttons and other interactive chrome", () => {
     const html = `<html><body><article>
       <p>${longText("readable", 8)}</p>

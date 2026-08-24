@@ -62,6 +62,7 @@ export interface ScrapeConfig {
   maxChunksPerUrl: number;
   chunkChars: number;
   allowPrivateIps: boolean;
+  hideImages: boolean;
   maxEvidenceChars: number;
   textMode: TextMode;
 }

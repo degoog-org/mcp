@@ -25,12 +25,61 @@ const BLOCK_TAGS = new Set([
 
 const HEADING_TAGS = new Set(["h1", "h2", "h3", "h4", "h5", "h6"]);
 
+const LABEL_ATTRS = ["alt", "aria-label", "title"];
+
+const MAX_LABEL_CHARS = 80;
+
+export interface MarkdownOptions {
+  hideImages: boolean;
+}
+
 const squash = (value: string): string => value.replace(/[ \t]+/g, " ").trim();
 
 const asElement = (node: AnyNode): Element | null =>
   node.type === "tag" ? (node as Element) : null;
 
-const renderNode = ($: CheerioAPI, node: AnyNode, lines: string[]): void => {
+const labelOf = ($: CheerioAPI, element: Element): string => {
+  const selected = $(element);
+  if (selected.attr("alt") === "") return "";
+
+  for (const attr of LABEL_ATTRS) {
+    const label = squash(selected.attr(attr) ?? "");
+    if (label) return label.slice(0, MAX_LABEL_CHARS);
+  }
+
+  return "";
+};
+
+const textOf = (
+  $: CheerioAPI,
+  selected: Cheerio<AnyNode>,
+  options: MarkdownOptions,
+): string =>
+  selected
+    .contents()
+    .toArray()
+    .map((node) => {
+      if (node.type === "text") return $(node).text();
+
+      const element = asElement(node);
+      if (!element) return "";
+
+      if (element.tagName.toLowerCase() !== "img") {
+        return textOf($, $(element), options);
+      }
+
+      if (options.hideImages) return "";
+      const label = labelOf($, element);
+      return label ? ` ${label} ` : "";
+    })
+    .join("");
+
+const renderNode = (
+  $: CheerioAPI,
+  node: AnyNode,
+  lines: string[],
+  options: MarkdownOptions,
+): void => {
   if (node.type === "text") {
     const text = squash($(node).text());
     if (text) lines.push(text);
@@ -48,8 +97,15 @@ const renderNode = ($: CheerioAPI, node: AnyNode, lines: string[]): void => {
     return;
   }
 
+  if (tag === "img") {
+    if (options.hideImages) return;
+    const label = labelOf($, element);
+    if (label) lines.push(label);
+    return;
+  }
+
   if (HEADING_TAGS.has(tag)) {
-    const text = squash(selected.text());
+    const text = squash(textOf($, selected, options));
     if (text) lines.push("", `${"#".repeat(Number(tag[1]))} ${text}`, "");
     return;
   }
@@ -61,7 +117,7 @@ const renderNode = ($: CheerioAPI, node: AnyNode, lines: string[]): void => {
   }
 
   if (tag === "li") {
-    const text = squash(selected.text());
+    const text = squash(textOf($, selected, options));
     if (text) lines.push(`- ${text}`);
     return;
   }
@@ -70,7 +126,7 @@ const renderNode = ($: CheerioAPI, node: AnyNode, lines: string[]): void => {
     const cells = selected
       .find("th, td")
       .toArray()
-      .map((cell) => squash($(cell).text()))
+      .map((cell) => squash(textOf($, $(cell), options)))
       .filter(Boolean);
     if (cells.length) lines.push(`| ${cells.join(" | ")} |`);
     return;
@@ -78,7 +134,7 @@ const renderNode = ($: CheerioAPI, node: AnyNode, lines: string[]): void => {
 
   if (tag === "table" || tag === "ul" || tag === "ol") {
     lines.push("");
-    selected.contents().each((_, child) => renderNode($, child, lines));
+    selected.contents().each((_, child) => renderNode($, child, lines, options));
     lines.push("");
     return;
   }
@@ -96,16 +152,20 @@ const renderNode = ($: CheerioAPI, node: AnyNode, lines: string[]): void => {
   });
 
   if (!hasBlockChild) {
-    const text = squash(selected.text());
+    const text = squash(textOf($, selected, options));
     if (text) lines.push(BLOCK_TAGS.has(tag) ? `${text}\n` : text);
     return;
   }
 
-  for (const child of children) renderNode($, child, lines);
+  for (const child of children) renderNode($, child, lines, options);
 };
 
-export const toMarkdown = ($: CheerioAPI, root: Cheerio<AnyNode>): string => {
+export const toMarkdown = (
+  $: CheerioAPI,
+  root: Cheerio<AnyNode>,
+  options: MarkdownOptions,
+): string => {
   const lines: string[] = [];
-  root.contents().each((_, node) => renderNode($, node, lines));
+  root.contents().each((_, node) => renderNode($, node, lines, options));
   return lines.join("\n");
 };

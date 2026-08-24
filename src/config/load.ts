@@ -138,6 +138,7 @@ const mergeConfig = (raw: Raw): McpConfig => {
         scrape.allowPrivateIps,
         d.scrape.allowPrivateIps,
       ),
+      hideImages: asBool(scrape.hideImages, d.scrape.hideImages),
       maxEvidenceChars: positive(
         scrape.maxEvidenceChars,
         d.scrape.maxEvidenceChars,

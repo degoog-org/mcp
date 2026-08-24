@@ -43,6 +43,7 @@ export const DEFAULT_CONFIG: McpConfig = {
     maxChunksPerUrl: 4,
     chunkChars: 700,
     allowPrivateIps: false,
+    hideImages: false,
     maxEvidenceChars: 8000,
     textMode: TextMode.Compact,
   },
@@ -123,6 +124,7 @@ scrape:
   maxChunksPerUrl: 4
   chunkChars: 700
   allowPrivateIps: false
+  hideImages: false
   maxEvidenceChars: 8000
   textMode: compact # compact | full
 

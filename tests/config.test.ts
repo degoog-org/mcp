@@ -167,6 +167,21 @@ describe("merging", () => {
     );
   });
 
+  test("scrape hide images defaults to false and accepts true", async () => {
+    const plain = join(dir, "plain-images.yml");
+    const hidden = join(dir, "scrape-hidden-images.yml");
+    await writeFile(plain, 'degoog:\n  url: "http://degoog.local:4444"\n');
+    await writeFile(hidden, "scrape:\n  hideImages: true\n");
+
+    expect((await loadConfig({ path: plain })).config.scrape.hideImages).toBe(
+      false,
+    );
+    expect(DEFAULT_CONFIG.scrape.hideImages).toBe(false);
+    expect((await loadConfig({ path: hidden })).config.scrape.hideImages).toBe(
+      true,
+    );
+  });
+
   test("coerces yaml false for query expansion", async () => {
     const path = join(dir, "mcp.yml");
     await writeFile(path, "bundleSearch:\n  queryExpansion: false\n");

@@ -77,7 +77,9 @@ const scrapeOne = async (
 
   let extraction: ReturnType<typeof extract>;
   try {
-    extraction = extract(outcome.html, outcome.url);
+    extraction = extract(outcome.html, outcome.url, {
+      hideImages: config.hideImages,
+    });
   } catch (err) {
     logger.warn(LOG_NS, `extraction failed for ${url}`, err);
     return failedRow(url, "extraction failed", outcome.url);

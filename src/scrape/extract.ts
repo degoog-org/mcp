@@ -4,7 +4,7 @@ import { cleanTitle } from "../utils/text.ts";
 import { canonicalUrl, isHttpUrl } from "../utils/urls.ts";
 import { cleanText } from "./clean.ts";
 import { NOISE_ATTR, PAGE_NOISE_SELECTORS, UI_CHROME_SELECTORS } from "./drop.ts";
-import { toMarkdown } from "./markdown.ts";
+import { toMarkdown, type MarkdownOptions } from "./markdown.ts";
 
 type ContentRoot = cheerio.Cheerio<AnyNode>;
 
@@ -155,7 +155,11 @@ const pickRoot = ($: cheerio.CheerioAPI): ContentRoot => {
 const looksUnrendered = (html: string, text: string): boolean =>
   text.length < 200 && APP_SHELL_HINTS.some((hint) => html.includes(hint));
 
-export const extract = (html: string, sourceUrl: string): Extraction => {
+export const extract = (
+  html: string,
+  sourceUrl: string,
+  options: MarkdownOptions = { hideImages: false },
+): Extraction => {
   const $ = cheerio.load(html);
   const fallbackTitle = isHttpUrl(sourceUrl)?.hostname ?? sourceUrl;
 
@@ -166,7 +170,7 @@ export const extract = (html: string, sourceUrl: string): Extraction => {
 
   const root = pickRoot($);
   stripNoise($, root);
-  const text = cleanText(toMarkdown($, root));
+  const text = cleanText(toMarkdown($, root, options));
 
   return {
     title,
