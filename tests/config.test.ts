@@ -182,6 +182,44 @@ describe("merging", () => {
     );
   });
 
+  test("scrape fetcher stays empty by default", async () => {
+    const path = join(dir, "plain-fetcher.yml");
+    await writeFile(path, 'degoog:\n  url: "http://degoog.local:4444"\n');
+
+    const { config } = await loadConfig({ path });
+    expect(config.scrape.fetcher.url).toBe("");
+    expect(config.scrape.fetcher.method).toBe("GET");
+    expect(config.scrape.fetcher.headers).toEqual({});
+  });
+
+  test("reads a delegated fetcher and normalises its method and headers", async () => {
+    const path = join(dir, "fetcher.yml");
+    await writeFile(
+      path,
+      [
+        "scrape:",
+        "  fetcher:",
+        '    url: " http://renderer:8080/v1 "',
+        "    method: post",
+        "    headers:",
+        '      Content-Type: "application/json"',
+        "      X-Retries: 3",
+        `    body: '{"url":"{{url}}"}'`,
+        "    html: page.body",
+        "",
+      ].join("\n"),
+    );
+
+    const { config } = await loadConfig({ path });
+    expect(config.scrape.fetcher.url).toBe("http://renderer:8080/v1");
+    expect(config.scrape.fetcher.method).toBe("POST");
+    expect(config.scrape.fetcher.headers).toEqual({
+      "Content-Type": "application/json",
+      "X-Retries": "3",
+    });
+    expect(config.scrape.fetcher.html).toBe("page.body");
+  });
+
   test("coerces yaml false for query expansion", async () => {
     const path = join(dir, "mcp.yml");
     await writeFile(path, "bundleSearch:\n  queryExpansion: false\n");

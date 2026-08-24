@@ -14,6 +14,7 @@ export enum TextMode {
 
 export enum ScrapeRenderer {
   Static = "static",
+  Delegated = "delegated",
 }
 
 export enum QueryExpansion {
@@ -52,8 +53,17 @@ export interface SearchConfig {
   textMode: TextMode;
 }
 
+export interface FetcherConfig {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body: string;
+  html: string;
+}
+
 export interface ScrapeConfig {
   renderer: ScrapeRenderer;
+  fetcher: FetcherConfig;
   maxUrls: number;
   concurrency: number;
   timeout: number;

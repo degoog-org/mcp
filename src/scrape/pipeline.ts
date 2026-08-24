@@ -5,10 +5,13 @@ import { capChars } from "../search/caps.ts";
 import { pickChunks, type Chunk } from "./chunks.ts";
 import { extract } from "./extract.ts";
 import { fetchPage } from "./fetch.ts";
+import { fetchVia } from "./fetcher.ts";
 
 const LOG_NS = "scrape";
 const BROWSER_NEEDED =
   "page needs browser rendering, this scraper is static fetch only";
+const BROWSER_STILL =
+  "page still needs browser rendering, the delegated fetcher did not return a rendered body";
 const NO_CONTENT =
   "no readable article content found in the static html, the page may render its body with JavaScript";
 const SCAN_FACTOR = 8;
@@ -61,12 +64,15 @@ const scrapeOne = async (
   const maxChars = options.maxCharsPerUrl ?? config.maxCharsPerUrl;
   const maxChunks = options.maxChunksPerUrl ?? config.maxChunksPerUrl;
 
-  const outcome = await fetchPage(url, {
+  const fetchOptions = {
     timeoutMs: config.timeout,
     maxResponseBytes: config.maxResponseBytes,
     allowPrivateIps: config.allowPrivateIps,
     signal: options.signal,
-  });
+  };
+  const outcome = config.fetcher.url
+    ? await fetchVia(url, config.fetcher, fetchOptions)
+    : await fetchPage(url, fetchOptions);
 
   if (!outcome.ok) {
     return {
@@ -86,8 +92,10 @@ const scrapeOne = async (
   }
 
   if (extraction.needsBrowser || !extraction.text.trim()) {
+    const delegated = Boolean(config.fetcher.url);
+    const unrendered = delegated ? BROWSER_STILL : BROWSER_NEEDED;
     return {
-      ...failedRow(url, extraction.needsBrowser ? BROWSER_NEEDED : NO_CONTENT, outcome.url),
+      ...failedRow(url, extraction.needsBrowser ? unrendered : NO_CONTENT, outcome.url),
       title: extraction.title,
       canonical: extraction.canonical,
       redirects: outcome.redirects,

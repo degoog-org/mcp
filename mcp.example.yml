@@ -23,6 +23,12 @@ search:
 
 scrape:
   renderer: static
+  fetcher: # hand the page fetch to your own http service, worked examples in docs/PROXIES.md
+    url: "" # empty means the built in static fetch, supports {{url}} and {{timeout}}
+    method: GET
+    headers: {}
+    body: "" # sent as written, supports {{url}} and {{timeout}} (e.g. '{"url":"{{url}}","maxTimeout":{{timeout}}}')
+    html: "" # dot path to the html in a json reply, empty when the body is the html (e.g. "result.body")
   maxUrls: 4
   concurrency: 4
   timeout: 15000

@@ -58,6 +58,13 @@ const asBool = (value: unknown, fallback: boolean): boolean => {
 const asText = (value: unknown, fallback: string): string =>
   typeof value === "string" ? value : fallback;
 
+const asHeaders = (value: unknown): Record<string, string> => {
+  const entries = Object.entries(asRaw(value)).filter(
+    ([, header]) => typeof header === "string" || typeof header === "number",
+  );
+  return Object.fromEntries(entries.map(([name, header]) => [name, String(header)]));
+};
+
 const asOneOf = <T extends string>(
   value: unknown,
   allowed: readonly T[],
@@ -88,6 +95,7 @@ const mergeConfig = (raw: Raw): McpConfig => {
   const bundle = asRaw(raw.bundleSearch);
   const deep = asRaw(raw.deepSearch);
   const cache = asRaw(raw.cache);
+  const fetcher = asRaw(scrape.fetcher);
   const d = DEFAULT_CONFIG;
 
   return {
@@ -121,6 +129,13 @@ const mergeConfig = (raw: Raw): McpConfig => {
         Object.values(ScrapeRenderer),
         d.scrape.renderer,
       ),
+      fetcher: {
+        url: asText(fetcher.url, d.scrape.fetcher.url).trim(),
+        method: asText(fetcher.method, d.scrape.fetcher.method).toUpperCase(),
+        headers: asHeaders(fetcher.headers),
+        body: asText(fetcher.body, d.scrape.fetcher.body),
+        html: asText(fetcher.html, d.scrape.fetcher.html).trim(),
+      },
       maxUrls: positive(scrape.maxUrls, d.scrape.maxUrls),
       concurrency: positive(scrape.concurrency, d.scrape.concurrency),
       timeout: positive(scrape.timeout, d.scrape.timeout),

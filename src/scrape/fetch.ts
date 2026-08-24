@@ -26,7 +26,7 @@ export interface FetchOutcome {
   error?: string;
 }
 
-const failure = (url: string, error: string, status = 0): FetchOutcome => ({
+export const failedFetch = (url: string, error: string, status = 0): FetchOutcome => ({
   ok: false,
   url,
   status,
@@ -38,7 +38,7 @@ const failure = (url: string, error: string, status = 0): FetchOutcome => ({
   error,
 });
 
-const readCapped = async (
+export const readCapped = async (
   response: Response,
   maxBytes: number,
 ): Promise<{ text: string; bytes: number; truncated: boolean }> => {
@@ -92,7 +92,7 @@ export const fetchPage = async (
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     const check = await checkHost(current, options.allowPrivateIps);
     if (!check.ok) {
-      return failure(current, check.detail ?? check.reason ?? "blocked");
+      return failedFetch(current, check.detail ?? check.reason ?? "blocked");
     }
 
     let response: Response;
@@ -113,7 +113,7 @@ export const fetchPage = async (
       );
     } catch (err) {
       logger.debug(LOG_NS, `fetch failed for ${current}`, err);
-      return failure(current, briefError(err));
+      return failedFetch(current, briefError(err));
     }
 
     const location = response.headers.get("location");
@@ -122,7 +122,7 @@ export const fetchPage = async (
       try {
         next = new URL(location, current).toString();
       } catch {
-        return failure(current, "invalid redirect target", response.status);
+        return failedFetch(current, "invalid redirect target", response.status);
       }
       redirects.push(next);
       current = next;
@@ -131,11 +131,11 @@ export const fetchPage = async (
 
     const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
     if (!response.ok) {
-      return { ...failure(current, `HTTP ${response.status}`, response.status), redirects };
+      return { ...failedFetch(current, `HTTP ${response.status}`, response.status), redirects };
     }
     if (!isTextType(contentType)) {
       return {
-        ...failure(current, `unsupported content type ${contentType || "unknown"}`, response.status),
+        ...failedFetch(current, `unsupported content type ${contentType || "unknown"}`, response.status),
         redirects,
       };
     }
@@ -153,5 +153,5 @@ export const fetchPage = async (
     };
   }
 
-  return { ...failure(current, "too many redirects"), redirects };
+  return { ...failedFetch(current, "too many redirects"), redirects };
 };

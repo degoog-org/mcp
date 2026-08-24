@@ -6,6 +6,7 @@ import {
 } from "../deep-search/orchestrator.ts";
 import { getCapability, type Capabilities } from "../degoog/discover.ts";
 import { fromError } from "../output/errors.ts";
+import { rendererOf } from "../scrape/fetcher.ts";
 import { toolResult, type ToolResult } from "../output/structured.ts";
 import { capList } from "../search/caps.ts";
 import { logger } from "../utils/logger.ts";
@@ -51,7 +52,7 @@ export const capsOf = (ctx: ToolContext): Record<string, unknown> => ({
   snippetChars: ctx.config.search.snippetChars,
   scrapeMaxUrls: ctx.config.scrape.maxUrls,
   scrapeMaxCharsPerUrl: ctx.config.scrape.maxCharsPerUrl,
-  scrapeRenderer: ctx.config.scrape.renderer,
+  scrapeRenderer: rendererOf(ctx.config.scrape),
   bundleMaxScrapeUrls: ctx.config.bundleSearch.maxScrapeUrls,
   bundleMaxEvidenceChars: ctx.config.bundleSearch.maxEvidenceChars,
   outputMode: ctx.config.output.mode,

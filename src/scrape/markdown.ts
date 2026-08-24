@@ -33,6 +33,8 @@ export interface MarkdownOptions {
   hideImages: boolean;
 }
 
+export const MARKDOWN_DEFAULTS: MarkdownOptions = { hideImages: false };
+
 const squash = (value: string): string => value.replace(/[ \t]+/g, " ").trim();
 
 const asElement = (node: AnyNode): Element | null =>
@@ -163,7 +165,7 @@ const renderNode = (
 export const toMarkdown = (
   $: CheerioAPI,
   root: Cheerio<AnyNode>,
-  options: MarkdownOptions,
+  options: MarkdownOptions = MARKDOWN_DEFAULTS,
 ): string => {
   const lines: string[] = [];
   root.contents().each((_, node) => renderNode($, node, lines, options));

@@ -35,6 +35,13 @@ export const DEFAULT_CONFIG: McpConfig = {
   },
   scrape: {
     renderer: ScrapeRenderer.Static,
+    fetcher: {
+      url: "",
+      method: "GET",
+      headers: {},
+      body: "",
+      html: "",
+    },
     maxUrls: 4,
     concurrency: 4,
     timeout: 15000,
@@ -88,11 +95,8 @@ export const DEFAULT_CONFIG: McpConfig = {
   },
 };
 
-export const DEFAULT_CONFIG_YAML = `# Degoog MCP sidecar configuration.
-# String values accept \${VAR} and \${VAR:-default}. $$ is a literal $.
-# Sidecar secrets are read from the environment variables named below, never stored here.
-# deepSearch.apiKey may be a literal key or \${YOUR_PROVIDER_KEY}. See DEEP_SEARCH.md.
-# Every timeout and ttl in this file is in milliseconds.
+export const DEFAULT_CONFIG_YAML = `# Degoog MCP configuration.
+# Timeout and ttl values are milliseconds.
 
 server:
   host: ""
@@ -116,6 +120,12 @@ search:
 
 scrape:
   renderer: static
+  fetcher: # hand the page fetch to your own http service, worked examples in docs/PROXIES.md
+    url: "" # empty means the built in static fetch, supports {{url}} and {{timeout}}
+    method: GET
+    headers: {}
+    body: "" # sent as written, supports {{url}} and {{timeout}} (e.g. '{"url":"{{url}}","maxTimeout":{{timeout}}}')
+    html: "" # dot path to the html in a json reply, empty when the body is the html (e.g. "result.body")
   maxUrls: 4
   concurrency: 4
   timeout: 15000

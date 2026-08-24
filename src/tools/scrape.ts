@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { fitsBudget } from "../bundle/budget.ts";
 import { TextMode } from "../config/schema.ts";
+import { rendererOf } from "../scrape/fetcher.ts";
 import { citeId } from "../output/citations.ts";
 import { wantsDetail } from "../output/compact.ts";
 import { errorResult, fromError, ToolErrorKind } from "../output/errors.ts";
@@ -160,7 +161,7 @@ export const runScrapeTool = async (
       skipped: capped.omitted,
       counts: { useful, failed },
       sources: rows.map(toEvidenceRow),
-      renderer: config.scrape.renderer,
+      renderer: rendererOf(config.scrape),
       textMode: config.scrape.textMode,
     };
 
