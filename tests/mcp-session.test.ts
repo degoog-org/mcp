@@ -42,8 +42,8 @@ interface Sidecarland {
   stop: () => Promise<void>;
 }
 
-const liveSidecar = async (): Promise<Sidecarland> => {
-  const ctx = makeCtx(degoog.url, { server: { port: 0 } });
+const liveSidecar = async (deepSearch: { enabled?: boolean } = {}): Promise<Sidecarland> => {
+  const ctx = makeCtx(degoog.url, { server: { port: 0 }, deepSearch });
   const sidecar = await createSidecar(ctx);
   const running = await startServer(sidecar, ctx.config);
 
@@ -220,8 +220,20 @@ describe("streamable http sessions", () => {
     await land.stop();
   });
 
-  test("deep_search stays listed and degrades to a labelled bundle pack", async () => {
+  test("disabled deep_search is not listed", async () => {
     const land = await liveSidecar();
+    const session = await dialClient(land.mcpUrl);
+
+    const { tools } = await session.client.listTools();
+
+    expect(tools.map((tool) => tool.name)).not.toContain(ToolName.DeepSearch);
+
+    await session.client.close();
+    await land.stop();
+  });
+
+  test("unconfigured deep_search stays listed and degrades to a labelled bundle pack", async () => {
+    const land = await liveSidecar({ enabled: true });
     const session = await dialClient(land.mcpUrl);
 
     const { tools } = await session.client.listTools();
@@ -244,8 +256,8 @@ describe("streamable http sessions", () => {
     await land.stop();
   });
 
-  test("disabled deep_search explains itself before validating arguments", async () => {
-    const land = await liveSidecar();
+  test("unconfigured deep_search explains itself before validating arguments", async () => {
+    const land = await liveSidecar({ enabled: true });
     const session = await dialClient(land.mcpUrl);
 
     for (const args of [{}, { query: "" }, { lang: "en" }]) {

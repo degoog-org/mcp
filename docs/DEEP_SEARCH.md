@@ -115,20 +115,19 @@ Leave `enableThinking` off unless a specific model needs it to produce usable JS
 
 ## What happens when it cannot run
 
-`deep_search` stays registered even when it is off. MCP clients cache the tool list at connect time, and a tool that vanishes is harder for a model to reason about than a present one that explains itself. Its description and input schema never change, so a cached tool list is never wrong about them, and the live status lives in exactly one place: the runtime.
+With `enabled: false` the sidecar does not register `deep_search` at all, so it never shows up in `tools/list`. `discover` and `health` still name it under `disabledTools` and point at `bundle_search`. The config is read once at boot, so the tool list cannot change under a connected client.
 
-`onProviderUnavailable` decides what a call actually does when the tool is not usable. That covers three cases:
+Once `enabled` is true the tool is registered, and `onProviderUnavailable` decides what a call does when it still cannot run. That covers two cases:
 
-1. `enabled` is false
-2. `enabled` is true but a required field is missing
-3. everything is configured but the provider is unreachable, or the model id is wrong
+1. a required field is missing
+2. everything is configured but the provider is unreachable, or the model id is wrong
 
 ### `bundle_search` (default)
 
 The call runs `bundle_search` on the same query and returns that evidence pack, loudly labelled:
 
 ```
-DEGRADED RESULT, deep_search did not run. deep_search is disabled on this instance. ...
+DEGRADED RESULT, deep_search did not run. deep_search is enabled but not configured: ...
 This is a bundle_search evidence pack. No queries were planned, no coverage was evaluated,
 no report was written. Treat it as raw sources, not as research.
 ```

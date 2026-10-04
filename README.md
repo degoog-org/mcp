@@ -46,10 +46,10 @@ Step by step, including the parts this skips: [docs/GETTING_STARTED.md](docs/GET
 | `search`        | Degoog search, deduped and capped, in Degoog order, with scrape recommendations.                 |
 | `scrape`        | Fetch explicit http(s) URLs, return cleaned evidence chunks. One row per URL, failures included. |
 | `bundle_search` | Search, read sources in Degoog order, return one compact evidence pack.                          |
-| `deep_search`   | Iterative research loop driven by an LLM provider you configure. Off by default, still listed.   |
+| `deep_search`   | Iterative research loop driven by an LLM provider you configure. Off by default, and only listed once `deepSearch.enabled` is true. |
 | `discover`      | Search types, aliases, engine ids, commands, caps, what is enabled.                              |
 | `retry_engine`  | Re-run one engine instead of the whole search.                                                   |
-| `command`       | Run a Degoog bang command such as `!uuid`.                                                       |
+| `command`       | Run a bang command that is enabled on your Degoog instance. `discover` lists them.                |
 | `health`        | Sidecar health, Degoog reachability, auth status, caps.                                          |
 
 Degoog autocomplete is not exposed as a tool. Agents kept burning calls on suggestions that were never going to be evidence. It is still there internally, for opt-in query expansion in `bundle_search`.

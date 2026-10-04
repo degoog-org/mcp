@@ -14,5 +14,5 @@ RUN mkdir -p /data
 COPY --from=build /src/dist/main.js /app/main.js
 EXPOSE 4443
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:4443/healthz >/dev/null 2>&1 || exit 1
+  CMD ["bun", "run", "/app/main.js", "healthcheck"]
 ENTRYPOINT ["bun", "run", "/app/main.js"]

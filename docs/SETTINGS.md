@@ -48,7 +48,7 @@ A few settings can come from the environment instead, and the environment wins o
 | `DEGOOG_MCP_DEGOOG_API_KEY` | Degoog API key, sent as a bearer token to Degoog. |
 | `DEGOOG_MCP_CONFIG` | Config file path override. |
 | `DEGOOG_MCP_DEGOOG_URL` | Degoog base URL override. Wins over `mcp.yml`. |
-| `DEGOOG_MCP_PORT` | Listen port override. |
+| `DEGOOG_MCP_PORT` | Listen port override. The image healthcheck follows it, and `server.port`, so you only change the port mapping. |
 | `DEGOOG_MCP_BIND_HOST` | Bind host override. Empty binds everywhere. |
 | `DEGOOG_MCP_LOG_LEVEL` | `debug`, `info`, `warn` or `error`. |
 | `DEGOOG_MCP_USER_AGENT` | User agent used when scraping. |

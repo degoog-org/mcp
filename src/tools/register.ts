@@ -70,17 +70,19 @@ export const registerTools = (
       asCallResult(await runBundleTool(ctx, args as BundleArgs, extra.signal)),
   );
 
-  server.registerTool(
-    ToolName.DeepSearch,
-    {
-      title: "Deep search",
-      description: DEEP_SEARCH_DESCRIPTION,
-      inputSchema: deepShape,
-      annotations: READ_ONLY,
-    },
-    async (args, extra) =>
-      asCallResult(await runDeepTool(ctx, args as DeepArgs, extra.signal)),
-  );
+  if (ctx.config.deepSearch.enabled) {
+    server.registerTool(
+      ToolName.DeepSearch,
+      {
+        title: "Deep search",
+        description: DEEP_SEARCH_DESCRIPTION,
+        inputSchema: deepShape,
+        annotations: READ_ONLY,
+      },
+      async (args, extra) =>
+        asCallResult(await runDeepTool(ctx, args as DeepArgs, extra.signal)),
+    );
+  }
 
   server.registerTool(
     ToolName.Discover,
@@ -111,7 +113,7 @@ export const registerTools = (
     {
       title: "Run bang command",
       description:
-        "Run a Degoog bang command such as !uuid and return its rendered output as text.",
+        "Run a bang command installed on this Degoog instance and return its rendered output as text. Call discover first for the list of enabled commands, disabled ones return an error.",
       inputSchema: commandShape,
       annotations: READ_ONLY,
     },

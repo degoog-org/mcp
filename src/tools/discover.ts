@@ -31,14 +31,23 @@ export const enabledTools = (ctx: ToolContext): string[] =>
 export const disabledTools = (ctx: ToolContext): DisabledTool[] => {
   if (deepSearchReady(ctx)) return [];
 
+  if (!ctx.config.deepSearch.enabled) {
+    return [
+      {
+        name: ToolName.DeepSearch,
+        reason: "deepSearch.enabled is false in mcp.yml",
+        onCall: "it is not registered, so it does not appear in tools/list",
+        useInstead: ToolName.BundleSearch,
+      },
+    ];
+  }
+
   const degrades = fallsBackToBundle(ctx);
 
   return [
     {
       name: ToolName.DeepSearch,
-      reason: ctx.config.deepSearch.enabled
-        ? `deepSearch is enabled but not configured in mcp.yml: ${configProblems(ctx).join("; ")}`
-        : "deepSearch.enabled is false in mcp.yml",
+      reason: `deepSearch is enabled but not configured in mcp.yml: ${configProblems(ctx).join("; ")}`,
       onCall: degrades
         ? "it stays registered and every call returns a degraded bundle_search evidence pack, labelled as such"
         : "it stays registered and every call returns an error, nothing runs in its place",

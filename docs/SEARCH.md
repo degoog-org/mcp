@@ -58,7 +58,7 @@ It resolves the engine from the id or name you passed, then reports it under Deg
 
 ## `command`
 
-Runs a Degoog bang command such as `!uuid` and returns what Degoog returns.
+Runs a bang command that is enabled on your Degoog instance and returns what Degoog returns. `discover` lists the commands you can call. A command that is disabled in Degoog comes back as an error.
 
 ## `discover`
 

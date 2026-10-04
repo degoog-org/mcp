@@ -93,8 +93,7 @@ describe("discover tool", () => {
       {
         name: ToolName.DeepSearch,
         reason: "deepSearch.enabled is false in mcp.yml",
-        onCall:
-          "it stays registered and every call returns a degraded bundle_search evidence pack, labelled as such",
+        onCall: "it is not registered, so it does not appear in tools/list",
         useInstead: ToolName.BundleSearch,
       },
     ]);
@@ -103,7 +102,7 @@ describe("discover tool", () => {
 
   test("offers no substitute when the fallback is off", async () => {
     const ctx = makeCtx(server.url, {
-      deepSearch: { onProviderUnavailable: ProviderFallback.Off },
+      deepSearch: { enabled: true, onProviderUnavailable: ProviderFallback.Off },
     });
     const result = await runDiscoverTool(ctx);
     const off = structured(result).disabledTools as Array<Record<string, string>>;

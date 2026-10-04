@@ -1,11 +1,13 @@
 import { createCache } from "./cache/memory.ts";
 import { loadConfig } from "./config/load.ts";
 import { createClient } from "./degoog/client.ts";
+import { probeHealth } from "./server/healthcheck.ts";
 import { createSidecar, startServer } from "./server/http.ts";
 import type { ToolContext } from "./tools/context.ts";
 import { logger } from "./utils/logger.ts";
 
 const LOG_NS = "main";
+const HEALTHCHECK_ARG = "healthcheck";
 
 export const bootstrap = async (): Promise<ToolContext> => {
   const { config, path, created } = await loadConfig();
@@ -42,6 +44,14 @@ export const main = async (): Promise<void> => {
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 };
 
+export const healthcheck = async (): Promise<boolean> => {
+  const { config } = await loadConfig({ createIfMissing: false });
+  return probeHealth(config);
+};
+
 if (import.meta.main) {
+  if (process.argv.includes(HEALTHCHECK_ARG)) {
+    process.exit((await healthcheck()) ? 0 : 1);
+  }
   await main();
 }

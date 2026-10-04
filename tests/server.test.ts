@@ -140,7 +140,7 @@ describe("auth guard", () => {
 
 describe("tool registration", () => {
   test("registers every expected tool", async () => {
-    const session = await connect(makeCtx(degoog.url));
+    const session = await connect(makeCtx(degoog.url, { deepSearch: { enabled: true } }));
 
     const { tools } = await session.client.listTools();
     const names = tools.map((tool) => tool.name).sort();
@@ -190,8 +190,19 @@ describe("tool registration", () => {
     await session.close();
   });
 
-  test("deep search names the missing query and its own live status", async () => {
+  test("deep search is left out of tools/list while it is disabled", async () => {
     const session = await connect(makeCtx(degoog.url));
+
+    const { tools } = await session.client.listTools();
+
+    expect(tools.map((tool) => tool.name)).not.toContain(ToolName.DeepSearch);
+    expect(tools.map((tool) => tool.name)).toContain(ToolName.BundleSearch);
+
+    await session.close();
+  });
+
+  test("deep search names the missing query and its own live status", async () => {
+    const session = await connect(makeCtx(degoog.url, { deepSearch: { enabled: true } }));
 
     const result = await session.client.callTool({
       name: ToolName.DeepSearch,
@@ -205,7 +216,7 @@ describe("tool registration", () => {
     expect(result.isError).toBe(true);
     expect(error.kind).toBe("input");
     expect(error.message).toContain("query must not be empty");
-    expect(error.message).toContain("deep_search is disabled on this instance");
+    expect(error.message).toContain("deep_search is enabled but not configured");
 
     await session.close();
   });

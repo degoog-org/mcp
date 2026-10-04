@@ -18,7 +18,7 @@ export const commandShape = {
   query: z
     .string()
     .min(1)
-    .describe("Bang command with arguments, for example !uuid or !w bun."),
+    .describe("Bang command with arguments, using a trigger listed by discover."),
   page: z.number().int().min(1).max(10).optional().describe("Result page."),
 };
 
