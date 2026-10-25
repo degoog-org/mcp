@@ -4,11 +4,12 @@ import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import { registerTools } from "../tools/register.ts";
 import type { ToolContext } from "../tools/context.ts";
 import { logger } from "../utils/logger.ts";
+import { version } from "../../package.json";
 
 const LOG_NS = "mcp";
 
 export const SERVER_NAME = "degoog-mcp";
-export const SERVER_VERSION = "0.1.0";
+export const SERVER_VERSION = version;
 
 export const SESSION_HEADER = "mcp-session-id";
 export const SESSION_IDLE_MS = 30 * 60 * 1000;

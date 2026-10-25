@@ -89,7 +89,7 @@ If your model is small, start with `bundle_search`. It exists because 2b to 7b m
 
 ## Development
 
-Requires Bun 1.3+.
+Requires Bun 1.4.4+.
 
 ```bash
 bun install --frozen-lockfile

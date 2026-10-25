@@ -83,7 +83,7 @@ Anything that can use MCPs over streamable HTTP will work. Point it at `/mcp` an
 
 ## Development
 
-Requires Bun 1.3+.
+Requires Bun 1.4.4+.
 
 ```bash
 bun install --frozen-lockfile
